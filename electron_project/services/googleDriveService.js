@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 const { GoogleAuth } = require('google-auth-library');
 const axios = require('axios');
+const cheerio = require('cheerio');
 
 /**
  * Google Drive integration service for extracting content from Google Docs and Drive files
@@ -101,7 +102,7 @@ class GoogleDriveService {
   }
 
   /**
-   * Get file metadata from Google Drive
+   * Get file metadata
    * @param {string} fileId - Google Drive file ID
    * @returns {Promise<Object>} File metadata
    */
@@ -110,34 +111,50 @@ class GoogleDriveService {
       if (!this.drive) {
         throw new Error('Google Drive service not initialized');
       }
-
+      
       const response = await this.drive.files.get({
         fileId: fileId,
-        fields: 'id,name,mimeType,size,createdTime,modifiedTime,owners,permissions,description,webViewLink'
+        fields: 'id,name,mimeType,createdTime,modifiedTime,size,owners,webViewLink,webContentLink,capabilities',
+        supportsAllDrives: true
       });
-
-      const file = response.data;
+      
       return {
         success: true,
-        metadata: {
-          id: file.id,
-          name: file.name,
-          mimeType: file.mimeType,
-          size: file.size,
-          createdTime: file.createdTime,
-          modifiedTime: file.modifiedTime,
-          owners: file.owners,
-          description: file.description,
-          webViewLink: file.webViewLink,
-          fileType: this.getFileTypeFromMimeType(file.mimeType)
-        }
+        metadata: response.data
       };
     } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        fileId: fileId
-      };
+      console.warn(`Failed to get metadata via API for file ${fileId}, will try public access:`, error.message);
+      
+      // Try to get basic metadata via public URL
+      try {
+        const publicUrl = `https://docs.google.com/document/d/${fileId}/edit`;
+        const response = await axios.get(publicUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
+        
+        // Extract title from HTML
+        const $ = cheerio.load(response.data);
+        const title = $('title').text().replace(' - Google Docs', '').trim();
+        
+        return {
+          success: true,
+          metadata: {
+            id: fileId,
+            name: title || 'Untitled Document',
+            mimeType: 'application/vnd.google-apps.document',
+            webViewLink: `https://docs.google.com/document/d/${fileId}/edit`,
+            isPublic: true
+          }
+        };
+      } catch (publicError) {
+        return {
+          success: false,
+          error: `API: ${error.message}, Public: ${publicError.message}`,
+          fileId: fileId
+        };
+      }
     }
   }
 
@@ -182,6 +199,184 @@ class GoogleDriveService {
         fileId: fileId,
         type: 'google_docs'
       };
+    }
+  }
+
+  /**
+   * Scrape Google Doc content from public URL
+   * @param {string} fileId - Google Doc file ID
+   * @returns {Promise<Object>} Extracted content
+   */
+  async scrapeGoogleDocContent(fileId) {
+    try {
+      // Try both the edit and view URLs
+      const urls = [
+        `https://docs.google.com/document/d/${fileId}/edit`,
+        `https://docs.google.com/document/d/${fileId}/view`,
+        `https://docs.google.com/document/d/${fileId}/pub`
+      ];
+      
+      let response, lastError;
+      
+      // Try each URL until one works
+      for (const url of urls) {
+        try {
+          console.log(`Trying URL: ${url}`);
+          response = await axios.get(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.5',
+              'DNT': '1',
+              'Connection': 'keep-alive',
+              'Upgrade-Insecure-Requests': '1',
+              'Referer': 'https://www.google.com/'
+            },
+            maxRedirects: 5,
+            timeout: 10000,
+            validateStatus: null // Accept all status codes
+          });
+          
+          // If we get a redirect to a sign-in page, try the next URL
+          if (response.data.includes('accounts.google.com') || 
+              response.data.includes('Sign in - Google Accounts')) {
+            console.log(`Redirected to sign-in page, trying next URL...`);
+            continue;
+          }
+          
+          // If we get here, we have a valid response
+          break;
+          
+        } catch (error) {
+          lastError = error;
+          console.log(`Error with URL ${url}:`, error.message);
+          continue;
+        }
+      }
+      
+      if (!response) {
+        throw lastError || new Error('All URL attempts failed');
+      }
+      
+      const $ = cheerio.load(response.data);
+      
+      // Check for sign-in prompts or access denied messages
+      const pageText = $('body').text().toLowerCase();
+      if (pageText.includes('sign in') && (pageText.includes('account') || pageText.includes('google'))) {
+        throw new Error('Document requires Google account sign-in');
+      }
+      
+      if (pageText.includes('access denied') || pageText.includes('permission denied')) {
+        throw new Error('You do not have permission to access this document');
+      }
+      
+      // Extract title
+      let title = $('title').first().text().replace(' - Google Docs', '').trim();
+      if (!title || title === 'Google Docs') {
+        // Try alternative title selectors
+        title = $('meta[property="og:title"]').attr('content') || 
+                $('meta[name="title"]').attr('content') ||
+                'Untitled Document';
+      }
+      
+      // Extract content from the document body
+      const content = [];
+      
+      // Try multiple selectors for document content
+      const contentSelectors = [
+        'div.kix-appview-editor',
+        'div.contents',
+        'div.doc-content',
+        'div.doc-contents',
+        'div[role="document"]',
+        'div[role="main"]',
+        'body'
+      ];
+      
+      for (const selector of contentSelectors) {
+        $(selector).find('p, h1, h2, h3, h4, h5, h6, div').each((i, el) => {
+          const $el = $(el);
+          const text = $el.text().trim();
+          
+          // Skip empty elements or elements that are likely navigation/UI
+          if (text && 
+              !$el.hasClass('docs-title') && 
+              !$el.hasClass('docs-brand') &&
+              !$el.hasClass('docs-title-inner') &&
+              !$el.hasClass('docs-brand-name') &&
+              !$el.hasClass('docs-title-outer')) {
+            
+            // Determine element type
+            let type = el.tagName.toLowerCase();
+            if (type === 'div' && $el.text().length > 100) {
+              type = 'p'; // Treat long divs as paragraphs
+            }
+            
+            content.push({
+              type: type,
+              text: text,
+              index: content.length,
+              source: selector
+            });
+          }
+        });
+        
+        // If we found content, no need to try other selectors
+        if (content.length > 0) break;
+      }
+      
+      // If still no content, try to get any readable text from the page
+      if (content.length === 0) {
+        const textNodes = $('*').contents().filter(function() {
+          return this.nodeType === 3 && $(this).text().trim().length > 0;
+        });
+        
+        textNodes.each((i, node) => {
+          const text = $(node).text().trim();
+          if (text.split(/\s+/).length > 3) { // Only include meaningful text blocks
+            content.push({
+              type: 'p',
+              text: text,
+              index: i,
+              source: 'text_node'
+            });
+          }
+        });
+      }
+      
+      // Combine all text content
+      const fullText = content.map(item => item.text).join('\n\n');
+      
+      if (content.length === 0) {
+        throw new Error('Could not extract any meaningful content from the document');
+      }
+      
+      return {
+        success: true,
+        type: 'google_docs',
+        fileId: fileId,
+        title: title,
+        content: fullText,
+        structure: content,
+        wordCount: fullText.split(/\s+/).length,
+        isPublic: response.status < 400,
+        source: 'web_scraping',
+        warning: content.length < 3 ? 'Limited content was extracted - document may require authentication' : undefined,
+        url: url
+      };
+    } catch (error) {
+      // Provide more detailed error information
+      const errorDetails = {
+        error: error.message,
+        fileId: fileId,
+        type: 'google_docs',
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: `https://docs.google.com/document/d/${fileId}/edit`,
+        solution: 'The document may be private or require authentication. Try sharing it with the service account or making it public.'
+      };
+      
+      throw new Error(JSON.stringify(errorDetails, null, 2));
     }
   }
 
@@ -303,45 +498,97 @@ class GoogleDriveService {
    */
   async extractContent(url) {
     try {
-      // Parse URL to get file ID and type
+      // Parse the URL to get file ID and type
       const urlInfo = this.parseGoogleDriveUrl(url);
       if (!urlInfo.success) {
-        return urlInfo;
+        throw new Error(`Invalid Google Drive URL: ${urlInfo.error}`);
       }
 
-      // Get file metadata to determine exact type
+      // Get file metadata
       const metadata = await this.getFileMetadata(urlInfo.fileId);
       if (!metadata.success) {
-        return metadata;
+        throw new Error(`Failed to get file metadata: ${metadata.error}`);
       }
 
-      const fileType = metadata.metadata.fileType;
-      const fileId = urlInfo.fileId;
+      const isPublic = metadata.metadata.isPublic === true;
+      const fileType = this.getFileType(metadata.metadata.mimeType);
+      
+      // For public Google Docs, try scraping first if API access fails
+      if (isPublic && fileType === 'document') {
+        try {
+          return await this.extractGoogleDocsContent(urlInfo.fileId);
+        } catch (apiError) {
+          console.warn('Falling back to web scraping for document:', apiError.message);
+          return this.scrapeGoogleDocContent(urlInfo.fileId);
+        }
+      }
 
-      // Route to appropriate extraction method based on file type
+      // For other file types or private docs, use the standard API flow
+      let content;
+      
       switch (fileType) {
         case 'document':
-          return await this.extractGoogleDocsContent(fileId);
-        
+          content = await this.extractGoogleDocsContent(urlInfo.fileId);
+          break;
         case 'spreadsheet':
-          return await this.extractGoogleSheetsContent(fileId);
-        
+          content = await this.extractGoogleSheetsContent(urlInfo.fileId);
+          break;
         case 'presentation':
-          return await this.extractGoogleSlidesContent(fileId);
-        
-        default:
-          return {
-            success: false,
-            error: `Unsupported file type: ${fileType}`,
-            fileId: fileId,
-            metadata: metadata.metadata
+          content = await this.extractGoogleSlidesContent(urlInfo.fileId);
+          break;
+        case 'pdf':
+        case 'text':
+        case 'docx':
+        case 'xlsx':
+        case 'pptx':
+          // For binary files, return download URL and metadata
+          content = {
+            success: true,
+            type: fileType,
+            fileId: urlInfo.fileId,
+            title: metadata.metadata.name,
+            downloadUrl: `https://www.googleapis.com/drive/v3/files/${urlInfo.fileId}?alt=media`,
+            webViewLink: metadata.metadata.webViewLink,
+            mimeType: metadata.metadata.mimeType,
+            metadata: {
+              createdTime: metadata.metadata.createdTime,
+              modifiedTime: metadata.metadata.modifiedTime,
+              size: metadata.metadata.size,
+              isPublic: isPublic
+            }
           };
+          break;
+        default:
+          throw new Error(`Unsupported file type: ${metadata.metadata.mimeType}`);
       }
+
+      return {
+        success: true,
+        type: fileType,
+        fileId: urlInfo.fileId,
+        title: metadata.metadata.name,
+        mimeType: metadata.metadata.mimeType,
+        isPublic: isPublic,
+        ...content
+      };
     } catch (error) {
+      // If we have a file ID but API access failed, try web scraping as last resort
+      if (urlInfo && urlInfo.fileId && urlInfo.type === 'docs') {
+        try {
+          console.warn('Primary extraction failed, attempting web scraping fallback:', error.message);
+          return this.scrapeGoogleDocContent(urlInfo.fileId);
+        } catch (scrapeError) {
+          console.error('Web scraping fallback also failed:', scrapeError.message);
+          // Continue to return the original error
+        }
+      }
+      
       return {
         success: false,
         error: error.message,
-        url: url
+        url: url,
+        fileId: urlInfo?.fileId,
+        type: urlInfo?.type
       };
     }
   }
