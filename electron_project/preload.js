@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onAccessibilityPermissionNeeded: (callback) => ipcRenderer.on('accessibility-permission-needed', callback),
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
   
+  // File system operations
+  openScreenshotFolder: (filePath) => ipcRenderer.invoke('open-screenshot-folder', filePath),
+  
   // Add more API methods here as needed
   platform: process.platform,
   versions: process.versions

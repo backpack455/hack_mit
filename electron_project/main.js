@@ -210,18 +210,30 @@ async function captureScreenshot() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `screenshot-${timestamp}.png`;
     
+    // Save screenshot to local screenshots directory
+    const fs = require('fs');
+    const screenshotsDir = path.join(__dirname, 'screenshots');
+    
+    // Create screenshots directory if it doesn't exist
+    if (!fs.existsSync(screenshotsDir)) {
+      fs.mkdirSync(screenshotsDir, { recursive: true });
+    }
+    
+    const filePath = path.join(screenshotsDir, filename);
+    fs.writeFileSync(filePath, img);
+    
     // Show notification
     new Notification({
       title: 'Screenshot Captured',
-      body: `Screenshot saved and sent to app`,
+      body: `Screenshot saved to ${filename}`,
       silent: false
     }).show();
     
-    // Send to renderer
+    // Send to renderer with local file path
     if (mainWindow) {
       mainWindow.webContents.send('screenshot-captured', {
-        image: img.toString('base64'),
         filename: filename,
+        filePath: filePath,
         timestamp: new Date().toISOString()
       });
       
@@ -596,6 +608,14 @@ ipcMain.handle('gesture-detected', () => {
     return true;
   }
   return false;
+});
+
+// Handle opening screenshot folder
+ipcMain.handle('open-screenshot-folder', (event, filePath) => {
+  const { shell } = require('electron');
+  const path = require('path');
+  const folderPath = path.dirname(filePath);
+  shell.showItemInFolder(filePath);
 });
 
 // IPC handlers for gesture and screenshot functionality

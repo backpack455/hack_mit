@@ -222,7 +222,7 @@ function addScreenshotToUI(data) {
     screenshotDiv.className = 'screenshot-item';
     
     const img = document.createElement('img');
-    img.src = `data:image/png;base64,${data.image}`;
+    img.src = `file://${data.filePath}`;
     img.alt = `Screenshot ${data.filename}`;
     img.style.cursor = 'pointer';
     img.onclick = () => openScreenshotViewer(data);
@@ -275,15 +275,15 @@ function openScreenshotViewer(data) {
                 <span class="close-modal">&times;</span>
             </div>
             <div class="modal-body">
-                <img src="data:image/png;base64,${data.image}" alt="${data.filename}" class="full-screenshot">
+                <img src="file://${data.filePath}" alt="${data.filename}" class="full-screenshot">
                 <div class="screenshot-details">
                     <p><strong>Captured:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
-                    <p><strong>Size:</strong> ${Math.round(data.image.length * 0.75 / 1024)} KB</p>
+                    <p><strong>Location:</strong> ${data.filePath}</p>
                 </div>
             </div>
             <div class="modal-footer">
-                <button onclick="downloadScreenshot('${data.filename}', '${data.image}')" class="download-btn">Download</button>
-                <button onclick="copyToClipboard('${data.image}')" class="copy-btn">Copy to Clipboard</button>
+                <button onclick="openScreenshotFolder('${data.filePath}')" class="download-btn">Open Folder</button>
+                <button onclick="copyScreenshotPath('${data.filePath}')" class="copy-btn">Copy Path</button>
                 <button onclick="analyzeScreenshot('${data.filename}')" class="analyze-btn">Analyze Context</button>
             </div>
         </div>
@@ -312,27 +312,15 @@ function openScreenshotViewer(data) {
     document.addEventListener('keydown', handleEsc);
 }
 
-// Download screenshot
-function downloadScreenshot(filename, base64Data) {
-    const link = document.createElement('a');
-    link.href = `data:image/png;base64,${base64Data}`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+// Open screenshot folder
+function openScreenshotFolder(filePath) {
+    window.electronAPI.openScreenshotFolder(filePath);
 }
 
-// Copy screenshot to clipboard
-async function copyToClipboard(base64Data) {
+// Copy screenshot path to clipboard
+async function copyScreenshotPath(filePath) {
     try {
-        // Convert base64 to blob
-        const response = await fetch(`data:image/png;base64,${base64Data}`);
-        const blob = await response.blob();
-        
-        // Copy to clipboard
-        await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-        ]);
+        await navigator.clipboard.writeText(filePath);
         
         // Show feedback
         const btn = event.target;
@@ -344,8 +332,8 @@ async function copyToClipboard(base64Data) {
             btn.style.backgroundColor = '';
         }, 2000);
     } catch (error) {
-        console.error('Failed to copy to clipboard:', error);
-        alert('Failed to copy to clipboard. Please try downloading instead.');
+        console.error('Failed to copy path to clipboard:', error);
+        alert('Failed to copy path to clipboard.');
     }
 }
 
