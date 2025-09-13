@@ -2,42 +2,243 @@
 
 let isGestureMode = false;
 let screenshots = [];
+let currentMode = 'study';
+
+// Lightweight "DB" stub for demo sessions
+const sessions = [
+  {
+    id: 's1',
+    mode: 'study',
+    title: 'Linear Algebra Lecture 3',
+    created_at: '2025-09-13T17:45:00Z',
+    artifacts: [
+      { kind: 'screenshot', path: 'file:///path/to/img1.png', meta_json: {} },
+      { kind: 'transcript', path: 'file:///path/to/t1.txt', meta_json: {} },
+    ],
+  },
+  {
+    id: 's2',
+    mode: 'work',
+    title: 'Product Strategy Meeting',
+    created_at: '2025-09-13T14:30:00Z',
+    artifacts: [
+      { kind: 'screenshot', path: 'file:///path/to/img2.png', meta_json: {} },
+      { kind: 'transcript', path: 'file:///path/to/t2.txt', meta_json: {} },
+    ],
+  },
+  {
+    id: 's3',
+    mode: 'research',
+    title: 'AI Ethics Research',
+    created_at: '2025-09-13T10:15:00Z',
+    artifacts: [
+      { kind: 'transcript', path: 'file:///path/to/t3.txt', meta_json: {} },
+    ],
+  },
+];
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Set up gesture and screenshot functionality
-    setupGestureControls();
-    
-    // Load initial gesture status
-    await updateGestureStatus();
-    
-    // Add interactive effects
-    addInteractiveEffects();
+  setupNavigation();
+  setupGestureControls();
+  await updateGestureStatus();
+  const initialMode = await window.electronAPI.getMode();
+  setModeUI(initialMode);
+  window.electronAPI.onModeChanged((mode) => setModeUI(mode));
+
+  // Initial render of sessions
+  renderSessions();
 });
 
+function setupNavigation() {
+  const modeRadios = document.querySelectorAll('.mode-switch input[name="mode-toggle"]');
+  modeRadios.forEach(radio => {
+    radio.addEventListener('change', async () => {
+      const mode = radio.value;
+      await window.electronAPI.setMode(mode);
+      // UI update happens via onModeChanged
+    });
+  });
+
+  document.getElementById('logo-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setModeUI(currentMode);
+    // Optionally collapse other sections or modals
+  });
+}
+
+function setModeUI(mode) {
+  currentMode = mode;
+
+  // highlight radio buttons
+  document.querySelectorAll('.mode-switch input[name="mode-toggle"]').forEach(r => {
+    r.checked = r.value === mode;
+  });
+
+  // render sessions for this mode
+  renderSessions();
+}
+
+function renderSessions() {
+  const container = document.getElementById('session-container');
+  if (!container) return;
+
+  // Filter sessions by current mode
+  const filteredSessions = sessions.filter(session => session.mode === currentMode);
+
+  // Sort sessions by creation date (newest first)
+  filteredSessions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  // Clear container
+  container.innerHTML = '';
+
+  if (filteredSessions.length === 0) {
+    // Show empty state with mode-specific message
+    const modeDescriptions = {
+      'study': 'academic lectures, notes, and learning materials',
+      'work': 'meetings, presentations, and work-related content',
+      'research': 'research papers, investigations, and analytical content'
+    };
+
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon empty-icon target-icon"></div>
+        <h3>No ${currentMode} sessions yet</h3>
+        <p>Sessions for ${modeDescriptions[currentMode] || currentMode + ' content'} will appear here when created.</p>
+        <div class="mode-stats">
+          <small>Total sessions across all modes: ${sessions.length}</small>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Add mode summary header
+  const summaryDiv = document.createElement('div');
+  summaryDiv.className = 'mode-summary';
+  summaryDiv.innerHTML = `
+    <div class="summary-stats">
+      <span class="session-count">${filteredSessions.length} ${currentMode} session${filteredSessions.length === 1 ? '' : 's'}</span>
+      <span class="last-updated">Last updated: ${new Date(filteredSessions[0].created_at).toLocaleDateString()}</span>
+    </div>
+  `;
+  container.appendChild(summaryDiv);
+
+  // Render session cards
+  filteredSessions.forEach(session => {
+    const sessionCard = createSessionCard(session);
+    container.appendChild(sessionCard);
+  });
+}
+
+function createSessionCard(session) {
+  const card = document.createElement('div');
+  card.className = 'session-item';
+  card.dataset.mode = session.mode;
+
+  // Find screenshot and transcript artifacts
+  const screenshot = session.artifacts.find(a => a.kind === 'screenshot');
+  const transcript = session.artifacts.find(a => a.kind === 'transcript');
+
+  // Create preview content
+  let previewContent = '';
+  if (screenshot) {
+    previewContent = `<div class="session-preview"><img src="${screenshot.path}" alt="Session preview" /></div>`;
+  } else if (transcript) {
+    previewContent = `<div class="session-preview-text">Transcript preview: Lorem ipsum dolor sit amet, consectetur adipiscing elit...</div>`;
+  }
+
+  card.innerHTML = `
+    <h3>${session.title}</h3>
+    <div class="session-meta">
+      ${new Date(session.created_at).toLocaleDateString()} • ${session.artifacts.length} item${session.artifacts.length === 1 ? '' : 's'}
+    </div>
+    ${previewContent}
+    <div class="session-actions">
+      <button class="session-action-btn" onclick="convertToSlideDeck('${session.id}')">Convert to Slide Deck</button>
+      <button class="session-action-btn" onclick="generateVisual('${session.id}')">Generate Visual</button>
+      <button class="session-action-btn" onclick="requestAIClarification('${session.id}')">Request AI Clarification</button>
+    </div>
+  `;
+
+  return card;
+}
+
+// Placeholder functions for session actions
+function convertToSlideDeck(sessionId) {
+  console.log('Convert to slide deck:', sessionId);
+  alert('Convert to Slide Deck functionality will be implemented here.');
+}
+
+function generateVisual(sessionId) {
+  console.log('Generate visual:', sessionId);
+  alert('Generate Visual functionality will be implemented here.');
+}
+
+function requestAIClarification(sessionId) {
+  console.log('Request AI clarification:', sessionId);
+  alert('Request AI Clarification functionality will be implemented here.');
+}
+
+// Page Navigation Setup
+function setupPageNavigation() {
+    const pages = document.querySelectorAll('.page');
+    const homeButtons = document.querySelectorAll('#home-btn, #home-btn-work');
+    const profileButtons = document.querySelectorAll('#profile-btn-home, #profile-btn, #profile-btn-work');
+    
+    // Home button navigation
+    homeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            showPage('home-page');
+        });
+    });
+    
+    // Profile button placeholder (can add profile functionality later)
+    profileButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            console.log('Profile clicked - functionality to be implemented');
+        });
+    });
+    
+    function showPage(pageId) {
+        pages.forEach(page => {
+            page.classList.remove('active');
+        });
+        document.getElementById(pageId).classList.add('active');
+    }
+}
 
 // Setup gesture control functionality
 function setupGestureControls() {
     const gestureToggle = document.getElementById('gesture-toggle');
-    const screenshotBtn = document.getElementById('screenshot-btn');
     
-    // Gesture toggle button
-    gestureToggle.addEventListener('click', async () => {
-        try {
-            isGestureMode = !isGestureMode;
-            await window.electronAPI.toggleGestureMode(isGestureMode);
-            updateGestureUI();
-        } catch (error) {
-            console.error('Error toggling gesture mode:', error);
-        }
-    });
+    // Setup all screenshot buttons
+    const screenshotButtons = [
+        document.getElementById('work-screenshot')
+    ].filter(btn => btn !== null); // Filter out null elements
     
-    // Manual screenshot button
-    screenshotBtn.addEventListener('click', async () => {
-        try {
-            await window.electronAPI.captureScreenshot();
-        } catch (error) {
-            console.error('Error capturing screenshot:', error);
-        }
+    // Gesture toggle button - only set up if element exists
+    if (gestureToggle) {
+        gestureToggle.addEventListener('click', async () => {
+            try {
+                isGestureMode = !isGestureMode;
+                await window.electronAPI.toggleGestureMode(isGestureMode);
+                updateGestureUI();
+            } catch (error) {
+                console.error('Error toggling gesture mode:', error);
+            }
+        });
+    } else {
+        console.log('Gesture toggle button not found in current page - this is normal for home page');
+    }
+    
+    // Manual screenshot buttons
+    screenshotButtons.forEach(screenshotBtn => {
+        screenshotBtn.addEventListener('click', async () => {
+            try {
+                await window.electronAPI.captureScreenshot();
+            } catch (error) {
+                console.error('Error capturing screenshot:', error);
+            }
+        });
     });
     
     // Listen for screenshot events from main process
@@ -193,73 +394,104 @@ function updateGestureUI() {
     const gestureStatus = document.getElementById('gesture-status');
     const statusDot = document.getElementById('status-dot');
     
-    if (isGestureMode) {
-        gestureToggle.textContent = 'Disable Gestures';
-        gestureToggle.classList.add('active');
-        gestureStatus.textContent = 'Gesture Mode Enabled';
-        statusDot.classList.add('active');
-    } else {
-        gestureToggle.textContent = 'Enable Gestures';
-        gestureToggle.classList.remove('active');
-        gestureStatus.textContent = 'Gesture Mode Disabled';
-        statusDot.classList.remove('active');
+    // Add null checks to prevent errors
+    if (gestureToggle) {
+        if (isGestureMode) {
+            gestureToggle.textContent = 'Disable Gestures';
+            gestureToggle.classList.add('active');
+        } else {
+            gestureToggle.textContent = 'Enable Gestures';
+            gestureToggle.classList.remove('active');
+        }
+    }
+    
+    if (gestureStatus) {
+        if (isGestureMode) {
+            gestureStatus.textContent = 'Gesture Mode Enabled';
+        } else {
+            gestureStatus.textContent = 'Gesture Mode Disabled';
+        }
+    }
+    
+    if (statusDot) {
+        if (isGestureMode) {
+            statusDot.classList.add('active');
+        } else {
+            statusDot.classList.remove('active');
+        }
+    }
+}
+
+// Helper function to build proper file:// URLs
+function buildFileURL(filePath) {
+    try {
+        // Prefer proper URL creation (handles spaces, unicode)
+        return require('url').pathToFileURL(filePath).toString();
+    } catch {
+        // Fallback
+        return `file://${encodeURI(filePath)}`;
     }
 }
 
 // Add screenshot to UI
 function addScreenshotToUI(data) {
-    const container = document.getElementById('screenshots-container');
-    const emptyState = container.querySelector('.empty-state');
-    const screenshotCount = document.querySelector('.screenshot-count');
-    
-    // Remove empty state if it exists
-    if (emptyState) {
-        emptyState.remove();
+    const containers = [
+        document.getElementById('screenshots-container'),
+        document.getElementById('session-container'),
+        document.getElementById('work-session-container')
+    ].filter(Boolean);
+
+    if (containers.length === 0) {
+        console.warn('No screenshots container found in DOM');
+        return;
     }
-    
-    // Create screenshot element
-    const screenshotDiv = document.createElement('div');
-    screenshotDiv.className = 'screenshot-item';
-    
-    const img = document.createElement('img');
-    img.src = `file://${data.filePath}`;
-    img.alt = `Screenshot ${data.filename}`;
-    img.style.cursor = 'pointer';
-    img.onclick = () => openScreenshotViewer(data);
-    
-    const info = document.createElement('div');
-    info.className = 'screenshot-info';
-    info.innerHTML = `
-        <h4>${data.filename}</h4>
-        <p>${new Date(data.timestamp).toLocaleString()}</p>
-        <div class="screenshot-actions">
-            <button onclick="openScreenshotViewer(${JSON.stringify(data).replace(/"/g, '&quot;')})" class="view-btn">View Full Size</button>
-            <button onclick="analyzeScreenshot('${data.filename}')" class="analyze-btn">Analyze Context</button>
-        </div>
-    `;
-    
-    screenshotDiv.appendChild(img);
-    screenshotDiv.appendChild(info);
-    
-    // Add to beginning of container
-    container.insertBefore(screenshotDiv, container.firstChild);
-    
-    // Keep only last 5 screenshots in UI
-    const screenshotItems = container.querySelectorAll('.screenshot-item');
-    if (screenshotItems.length > 5) {
-        screenshotItems[screenshotItems.length - 1].remove();
-    }
+
+    const cardHTML = (data) => `
+        <div class="screenshot-item">
+            <img src="${data.src}" alt="Screenshot ${data.filename}" class="thumb" style="cursor:pointer">
+            <div class="screenshot-info">
+                <h4>${data.filename}</h4>
+                <p>${new Date(data.timestamp).toLocaleString()}</p>
+                <div class="screenshot-actions">
+                    <button class="view-btn">View Full Size</button>
+                    <button class="analyze-btn">Analyze Context</button>
+                </div>
+            </div>
+        </div>`;
+
+    // Build a safe file:// URL (handles spaces, etc.)
+    const src = buildFileURL(data.filePath);
+
+    containers.forEach(container => {
+        // Remove empty state
+        const empty = container.querySelector('.empty-state');
+        if (empty) empty.remove();
+
+        // Prepend card
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = cardHTML({ ...data, src });
+        const card = wrapper.firstElementChild;
+
+        // Wire buttons
+        card.querySelector('.thumb').onclick = () => openScreenshotViewer({ ...data, filePath: data.filePath });
+        card.querySelector('.view-btn').onclick = () => openScreenshotViewer({ ...data, filePath: data.filePath });
+        card.querySelector('.analyze-btn').onclick = () => analyzeScreenshot(data.filename);
+
+        container.insertBefore(card, container.firstChild);
+
+        // Keep last 5
+        const items = container.querySelectorAll('.screenshot-item');
+        if (items.length > 5) items[items.length - 1].remove();
+
+        // Update any "X captured" counters in that section
+        const countEl = container.closest('.session-section')?.querySelector('.screenshot-count');
+        if (countEl) countEl.textContent = `${container.querySelectorAll('.screenshot-item').length} captured`;
+    });
     
     // Store screenshot data
     screenshots.unshift(data);
     if (screenshots.length > 5) {
         screenshots.pop();
-    }
-    
-    // Update screenshot count
-    if (screenshotCount) {
-        const count = container.querySelectorAll('.screenshot-item').length;
-        screenshotCount.textContent = `${count} captured`;
     }
 }
 
@@ -275,7 +507,7 @@ function openScreenshotViewer(data) {
                 <span class="close-modal">&times;</span>
             </div>
             <div class="modal-body">
-                <img src="file://${data.filePath}" alt="${data.filename}" class="full-screenshot">
+                <img src="${buildFileURL(data.filePath)}" alt="${data.filename}" class="full-screenshot">
                 <div class="screenshot-details">
                     <p><strong>Captured:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
                     <p><strong>Location:</strong> ${data.filePath}</p>
@@ -348,7 +580,7 @@ function showAccessibilityAlert() {
     alertDiv.className = 'accessibility-alert';
     alertDiv.innerHTML = `
         <div class="alert-content">
-            <h3>⚠️ Accessibility Permission Required</h3>
+            <h3>Accessibility Permission Required</h3>
             <p>To enable global gesture detection across your entire screen, please:</p>
             <ol>
                 <li>Open <strong>System Preferences</strong></li>
@@ -395,6 +627,7 @@ function addInteractiveEffects() {
         });
     });
 }
+
 
 // Cleanup event listeners when page unloads
 window.addEventListener('beforeunload', () => {

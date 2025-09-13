@@ -1,12 +1,21 @@
 const { app, BrowserWindow, Menu, ipcMain, Tray, nativeImage, globalShortcut, Notification, screen } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const screenshot = require('screenshot-desktop');
 const { spawn } = require('child_process');
+
+// Helper for packaged app paths
+const RES = (...p) => app.isPackaged
+  ? path.join(process.resourcesPath, ...p)
+  : path.join(__dirname, ...p);
 
 // Keep a global reference of the window object
 let mainWindow;
 let tray = null;
 let isGestureMode = false;
+let currentMode = 'study';          // NEW: default mode
+let afterCaptureAction = 'popover';  // NEW: default after-capture
+let isRecording = false;             // NEW: recording state
 let gestureStartTime = 0;
 let gesturePoints = [];
 let lastMousePos = { x: 0, y: 0 };
@@ -47,115 +56,135 @@ function createWindow() {
   });
 }
 
+// NEW: update tray title with a dot if gesture mode on
+function updateTrayTitle() {
+  // On macOS, a simple dot is enough; you can combine with a space or emoji if desired
+  const dot = isGestureMode ? ' •' : '';
+  tray.setTitle(dot);
+}
+
 // Create system tray
 function createTray() {
   // Create custom tray icon using canvas
-  const createTrayIcon = (gestureEnabled = false) => {
-    const iconPath = path.join(__dirname, 'assets/tray-icon.png');
-    let trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-    
-    // If no custom icon exists, create one using canvas
-    if (trayIcon.isEmpty()) {
-      try {
-        const { createCanvas } = require('canvas');
-        const canvas = createCanvas(16, 16);
-        const ctx = canvas.getContext('2d');
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, 16, 16);
-        
-        if (gestureEnabled) {
-          // Draw a circular gesture icon for enabled state
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1.5;
-          ctx.lineCap = 'round';
-          
-          // Draw circular arrow
-          ctx.beginPath();
-          ctx.arc(8, 8, 5, -Math.PI/2, Math.PI, false);
-          ctx.stroke();
-          
-          // Draw arrow head
-          ctx.beginPath();
-          ctx.moveTo(3.5, 10);
-          ctx.lineTo(2, 8.5);
-          ctx.lineTo(4.5, 8.5);
-          ctx.closePath();
-          ctx.fillStyle = '#000000';
-          ctx.fill();
-          
-          // Add small dot in center
-          ctx.beginPath();
-          ctx.arc(8, 8, 1, 0, 2 * Math.PI);
-          ctx.fillStyle = '#000000';
-          ctx.fill();
-        } else {
-          // Draw a simple camera icon for disabled state
-          ctx.fillStyle = '#666666';
-          ctx.strokeStyle = '#666666';
-          ctx.lineWidth = 1;
-          
-          // Camera body
-          ctx.fillRect(3, 6, 10, 6);
-          
-          // Camera lens
-          ctx.beginPath();
-          ctx.arc(8, 9, 2, 0, 2 * Math.PI);
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          
-          // Camera top
-          ctx.fillStyle = '#666666';
-          ctx.fillRect(6, 4, 4, 2);
-        }
-        
-        trayIcon = nativeImage.createFromBuffer(canvas.toBuffer());
-        trayIcon.setTemplateImage(true);
-      } catch (error) {
-        console.log('Canvas not available, using system template');
-        // Fallback to system template
-        trayIcon = nativeImage.createFromNamedImage('NSMenuOnStateTemplate', [16, 16]);
-        if (!trayIcon.isEmpty()) {
-          trayIcon.setTemplateImage(true);
-        }
-      }
-    }
-    
-    return trayIcon;
-  };
+function createTrayIcon(gestureEnabled = false) {
+  // Draw an eye-like oval with a radial gradient and an iris line
+  const { createCanvas } = require('canvas');
+  const canvas = createCanvas(20, 12);
+  const ctx = canvas.getContext('2d');
+
+  // Background oval (slightly taller than wide)
+  const grad = ctx.createRadialGradient(10, 6, 0, 10, 6, 6);
+  grad.addColorStop(0, gestureEnabled ? '#69D39B' : '#E0B465');
+  grad.addColorStop(1, gestureEnabled ? '#49D29C' : '#CFA052');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(10, 6, 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Central slit (iris)
+  ctx.fillStyle = '#0B0C10';
+  ctx.beginPath();
+  ctx.ellipse(10, 6, 1.2, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Transparent surrounding
+  return nativeImage.createFromBuffer(canvas.toBuffer());
+}
   
   tray = new Tray(createTrayIcon(isGestureMode));
   updateTrayMenu();
-  
-  // Update tooltip based on gesture mode
-  const updateTooltip = () => {
-    const status = isGestureMode ? 'ON' : 'OFF';
-    tray.setToolTip(`Gesture Screenshot App - Gesture Mode: ${status}`);
-  };
-  updateTooltip();
-  
-  // Both click and right-click show the menu (no auto-toggle)
-  tray.on('click', () => {
-    tray.popUpContextMenu();
-  });
-  
-  tray.on('right-click', () => {
-    tray.popUpContextMenu();
-  });
-  
-  // Update tray icon when gesture mode changes
-  const originalToggleGestureMode = toggleGestureMode;
+  updateTrayTitle();  // update title based on gesture mode
+
+  tray.on('click', () => { tray.popUpContextMenu(); });
+  tray.on('right-click', () => { tray.popUpContextMenu(); });
+
+  // monkey patch toggleGestureMode so it updates tray and menu
+  const origToggle = toggleGestureMode;
   toggleGestureMode = function(enabled) {
-    originalToggleGestureMode(enabled);
-    tray.setImage(createTrayIcon(enabled));
-    updateTooltip();
+    origToggle(enabled);
+    updateTrayTitle();
     updateTrayMenu();
   };
 }
 
+// Create proper macOS App menu
+function createAppMenu() {
+  const isMac = process.platform === 'darwin';
+  const template = [
+    ...(isMac ? [{
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { label: 'Preferences…', accelerator: 'CmdOrCtrl+,', click: () => mainWindow?.show() },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    }] : []),
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' }
+      ]
+    }
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
+  // Set up IPC handlers for mode management
+  ipcMain.handle('set-mode', (event, mode) => {
+    if (['study', 'work', 'research'].includes(mode)) {
+      currentMode = mode;
+      // Notify all windows of the mode change
+      BrowserWindow.getAllWindows().forEach(window => {
+        window.webContents.send('mode-changed', currentMode);
+      });
+      return true;
+    }
+    return false;
+  });
+
+  ipcMain.handle('get-mode', () => currentMode);
+
+  // Hide dock icon for pure menu-bar app experience (optional)
+  if (process.platform === 'darwin') {
+    app.dock.hide();
+  }
+  
+  createAppMenu();
   createWindow();
   createTray();
   setupGlobalShortcuts();
@@ -206,7 +235,12 @@ ipcMain.handle('show-message', (event, message) => {
 // Screenshot capture function
 async function captureScreenshot() {
   try {
-    const img = await screenshot({ format: 'png' });
+    // Capture screenshot without hiding windows - let it capture whatever is visible
+    console.log('Capturing screenshot...');
+    
+    const img = await screenshot({ 
+      format: 'png'
+    });
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `screenshot-${timestamp}.png`;
     
@@ -236,12 +270,6 @@ async function captureScreenshot() {
         filePath: filePath,
         timestamp: new Date().toISOString()
       });
-      
-      // Show window if hidden
-      if (!mainWindow.isVisible()) {
-        mainWindow.show();
-        mainWindow.focus();
-      }
     }
     
     return filename;
@@ -268,55 +296,129 @@ function setupGlobalShortcuts() {
   });
 }
 
-// Update tray menu
+// REPLACE: rebuild the tray menu with new structure
 function updateTrayMenu() {
   if (!tray) return;
-  
-  const contextMenu = Menu.buildFromTemplate([
+  const template = [
     {
-      label: isGestureMode ? '🟢 Gesture Mode: ON' : '🔴 Gesture Mode: OFF',
+      label: 'Mode',
+      submenu: [
+        {
+          label: 'Study',
+          type: 'radio',
+          checked: currentMode === 'study',
+          click: () => {
+            currentMode = 'study';
+            updateTrayMenu();
+            // notify renderer
+            if (mainWindow) mainWindow.webContents.send('mode-changed', 'study');
+          },
+        },
+        {
+          label: 'Work',
+          type: 'radio',
+          checked: currentMode === 'work',
+          click: () => {
+            currentMode = 'work';
+            updateTrayMenu();
+            if (mainWindow) mainWindow.webContents.send('mode-changed', 'work');
+          },
+        },
+        {
+          label: 'Research',
+          type: 'radio',
+          checked: currentMode === 'research',
+          click: () => {
+            currentMode = 'research';
+            updateTrayMenu();
+            if (mainWindow) mainWindow.webContents.send('mode-changed', 'research');
+          },
+        },
+      ],
+    },
+    { type: 'separator' },
+    {
+      label: 'Gesture Mode',
       type: 'checkbox',
       checked: isGestureMode,
       click: (menuItem) => {
         toggleGestureMode(menuItem.checked);
-      }
-    },
-    { type: 'separator' },
-    {
-      label: '📱 Show App Window',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      }
+      },
     },
     {
-      label: '📸 Take Screenshot Now',
-      accelerator: 'CmdOrCtrl+Shift+S',
+      // Recording entry is present but disabled for now
+      label: isRecording ? 'Stop Recording' : 'Start Recording',
+      enabled: false,
+    },
+    {
+      label: 'Take Screenshot Now',
       click: () => {
         captureScreenshot();
-      }
+      },
     },
     { type: 'separator' },
     {
-      label: '⚙️ Preferences',
+      label: 'After-capture',
+      submenu: [
+        {
+          label: 'Popover',
+          type: 'radio',
+          checked: afterCaptureAction === 'popover',
+          click: () => {
+            afterCaptureAction = 'popover';
+            updateTrayMenu();
+            if (mainWindow) mainWindow.webContents.send('after-capture-changed', 'popover');
+          },
+        },
+        {
+          label: 'Notification',
+          type: 'radio',
+          checked: afterCaptureAction === 'notification',
+          click: () => {
+            afterCaptureAction = 'notification';
+            updateTrayMenu();
+            if (mainWindow) mainWindow.webContents.send('after-capture-changed', 'notification');
+          },
+        },
+        {
+          label: 'Silent',
+          type: 'radio',
+          checked: afterCaptureAction === 'silent',
+          click: () => {
+            afterCaptureAction = 'silent';
+            updateTrayMenu();
+            if (mainWindow) mainWindow.webContents.send('after-capture-changed', 'silent');
+          },
+        },
+      ],
+    },
+    { type: 'separator' },
+    {
+      label: 'Show App Window',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
           mainWindow.focus();
         }
-      }
+      },
+    },
+    {
+      label: 'Preferences…',
+      click: () => {
+        // Placeholder for preferences UI
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
     },
     { type: 'separator' },
     {
-      label: '❌ Quit App',
-      accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
-      click: () => {
-        app.quit();
-      }
-    }
-  ]);
+      label: 'Quit App',
+      role: 'quit',
+    },
+  ];
+  const contextMenu = Menu.buildFromTemplate(template);
   
   tray.setContextMenu(contextMenu);
 }
@@ -518,9 +620,16 @@ let gestureProcess = null;
 
 function startPythonGestureDetector(scriptPath) {
   try {
-    // Use the virtual environment Python
-    const venvPython = path.join(__dirname, 'venv', 'bin', 'python');
-    gestureProcess = spawn(venvPython, [scriptPath]);
+    // Find available Python executable
+    const candidates = [
+      path.join(__dirname, 'venv', 'bin', 'python'),
+      '/usr/bin/python3',
+      '/opt/homebrew/bin/python3'
+    ];
+    const pythonExec = candidates.find(p => fs.existsSync(p)) || 'python3';
+    
+    console.log(`Using Python executable: ${pythonExec}`);
+    gestureProcess = spawn(pythonExec, [scriptPath]);
     
     gestureProcess.stdout.on('data', (data) => {
       const lines = data.toString().split('\n');
@@ -630,6 +739,27 @@ ipcMain.handle('capture-screenshot', () => {
 
 ipcMain.handle('get-gesture-status', () => {
   return isGestureMode;
+});
+
+// NEW: IPC handlers for mode and after-capture action
+ipcMain.handle('get-mode', () => {
+  return currentMode;
+});
+
+ipcMain.handle('set-mode', (event, mode) => {
+  currentMode = mode;
+  updateTrayMenu();
+  return currentMode;
+});
+
+ipcMain.handle('get-after-capture-action', () => {
+  return afterCaptureAction;
+});
+
+ipcMain.handle('set-after-capture-action', (event, action) => {
+  afterCaptureAction = action;
+  updateTrayMenu();
+  return afterCaptureAction;
 });
 
 // Handle window focus for gesture detection
