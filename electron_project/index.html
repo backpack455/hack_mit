@@ -3,75 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
-    <title>Gesture Screenshot</title>
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   img-src 'self' data: blob: file:; 
+                   script-src 'self' 'unsafe-inline'; 
+                   style-src 'self' 'unsafe-inline'; 
+                   font-src 'self' data:; 
+                   media-src 'self' blob:; 
+                   connect-src 'self';">
+    <title>VIPR</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Top navigation bar -->
+    <nav class="navbar">
+      <div class="nav-left">
+        <a href="#" id="logo-link" class="nav-brand">
+          <div class="viper-eye-small"></div>
+          VIPR
+        </a>
+      </div>
+      <div class="nav-center">
+        <h2 class="nav-title">VIPR</h2>
+      </div>
+      <div class="nav-right">
+        <!-- Mode toggle slide -->
+        <div class="mode-switch">
+          <input type="radio" name="mode-toggle" value="study" id="mode-study" checked />
+          <input type="radio" name="mode-toggle" value="work" id="mode-work" />
+          <input type="radio" name="mode-toggle" value="research" id="mode-research" />
+          <div class="mode-labels">
+            <label for="mode-study">Study</label>
+            <label for="mode-work">Work</label>
+            <label for="mode-research">Research</label>
+          </div>
+          <div class="mode-slider"></div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="home-page" class="page active">
+    <div class="home-container">
         <header>
-            <h1>📸 Gesture Screenshot</h1>
-            <p class="subtitle">Capture screenshots with simple circular gestures</p>
+            <div class="vipr-logo">
+                <div class="viper-eye">
+                    <div class="eye-iris"></div>
+                </div>
+                <h1>VIPR</h1>
+            </div>
+            <p class="subtitle">Visual Intelligence for Proactive Reasoning</p>
         </header>
 
         <main>
 
-            <div class="main-controls">
-                <div class="control-panel">
-                    <div class="gesture-status-card">
-                        <div class="status-indicator">
-                            <div id="status-dot" class="status-dot"></div>
-                            <span id="gesture-status">Gesture Mode Disabled</span>
-                        </div>
-                        <button id="gesture-toggle" class="primary-btn">Enable Gestures</button>
-                    </div>
-                    
-                    <div class="quick-actions">
-                        <button id="screenshot-btn" class="secondary-btn">
-                            <span class="btn-icon">📷</span>
-                            Quick Screenshot
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="instructions-card">
-                    <h3>How to Use</h3>
-                    <div class="instruction-steps">
-                        <div class="step">
-                            <span class="step-number">1</span>
-                            <p>Enable gesture mode above</p>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">2</span>
-                            <p>Move your cursor in circular motions anywhere</p>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">3</span>
-                            <p>Screenshots are captured automatically</p>
-                        </div>
-                    </div>
-                    <div class="keyboard-shortcuts">
-                        <span class="shortcut"><kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>S</kbd> Quick Screenshot</span>
-                        <span class="shortcut"><kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>G</kbd> Toggle Gestures</span>
-                    </div>
-                </div>
+          <!-- session grid stays within home-page, filtered by selected mode -->
+          <section class="session-section">
+            <h2>Session History</h2>
+            <div id="session-container" class="session-grid">
+              <div class="empty-state">
+                <div class="icon empty-icon target-icon"></div>
+                <h3>No sessions yet</h3>
+                <p>No sessions available for the selected mode.</p>
+              </div>
             </div>
-
-            <div class="screenshots-section">
-                <div class="section-header">
-                    <h2>Recent Screenshots</h2>
-                    <span class="screenshot-count">0 captured</span>
-                </div>
-                <div id="screenshots-container" class="screenshots-grid">
-                    <div class="empty-state">
-                        <div class="empty-icon">📸</div>
-                        <h3>No screenshots yet</h3>
-                        <p>Enable gesture mode and draw circles to capture screenshots</p>
-                    </div>
-                </div>
-            </div>
+          </section>
         </main>
     </div>
+    </div>
+
 
     <script src="renderer.js"></script>
 </body>
