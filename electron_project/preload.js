@@ -24,4 +24,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Additional event listeners that may be needed
   onAccessibilityPermissionNeeded: (callback) => ipcRenderer.on('accessibility-permission-needed', callback),
   gestureDetected: () => ipcRenderer.invoke('gesture-detected'),
+  // URL Context Retrieval API
+  retrieveUrlContext: (url, query = null) => ipcRenderer.invoke('retrieve-url-context', url, query),
+  getUrlSummary: (url) => ipcRenderer.invoke('get-url-summary', url),
+  getRawContent: (url, useBrowser = false) => ipcRenderer.invoke('get-raw-content', url, useBrowser),
+  batchRetrieveUrlContext: (urls, query = null) => ipcRenderer.invoke('batch-retrieve-url-context', urls, query),
+  
+  // Cache management
+  clearContextCache: () => ipcRenderer.invoke('clear-context-cache'),
+  getCacheStats: () => ipcRenderer.invoke('get-cache-stats'),
+  
+  // Google Drive integration
+  extractGoogleDrive: (url, query) => ipcRenderer.invoke('extract-google-drive', url, query),
+  initGoogleDrive: (credentials) => ipcRenderer.invoke('init-google-drive', credentials),
+  
+  // Add more API methods here as needed
+  platform: process.platform,
+  versions: process.versions
 });

@@ -1,0 +1,382 @@
+﻿STRAT 290: Business Strategy
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+Ordinary People Change The World
+
+
+
+
+________________
+
+
+
+
+
+
+Om Joshi, Kaitlyn Ko, Lauren Talcott, Ava Miller, Kabir Gulati, Luca Silveira, Joshua Hahn
+
+
+February 21th, 2025
+
+
+________________
+
+
+Table of Contents:
+Executive Summary……………………….………………………………………………………3
+Customer Discovery Research…………………………………………………………………….3 
+Case Study: Magic School Bus Digital Apps …………...……………………………………...4-5 
+Recommendation 1: Increasing Brand Reach through Roblox Roleplay Game…………………..5
+Recommendation 2: Celebrity Narrated Video Series …………………………………………... 6
+Appendices...…….…………………………………………………………………………….8-24
+________________
+
+
+Executive Summary: 
+Due to the lack of transparency by booksellers regarding customers, picture book biography series Ordinary People Change the World (OPCTW) cannot identify its customers and needs assistance. Book sales have also decreased 30%+ post-pandemic, and OPCTW needs to find solutions that will establish and maintain their competitive advantage at a low cost. Facing socio-cultural trends of decreasing attention spans and rising digital consumption of younger readers, OPCTW must pivot their strategy to accommodate for these changes. After developing a case study on the Magic School Bus, conducting a survey on children’s book preferences, and researching industry trends, our team recommends OPCTW sustains a competitive advantage through improved branch reach to their target customer audience through development of a Roblox game and celebrity-narrated videos.
+        First, a Roblox roleplay game will leverage Roblox’s expansive user base, targeting predominantly children and teenagers, to drive revenue through digital licensing, subscription models and increased book sales through cross-promotion synergies. Second, a celebrity-narrated video series will attract today’s digitally active youth through trusted voices while reinforcing the values of these characters being brought to life.
+
+
+Customer Discovery Research: 
+The survey results highlight the main purchasing factors of children's books as price then convenience. We partnered with Roblox to develop a user-friendly game in addition to a celebrity-narrated version of OPCTW’s books, both at no charge and digitally accessible to any potential customers. With 63% of survey respondents reporting an income of <$50,000, free access to OPCTW content allows consumers to preview materials, drawing in a larger audience and subsequently motivating them to buy the books in the future. 
+Nearly half of respondents were parents, of which 52% reported purchasing children’s books for educational purposes. To determine what educational categories to focus on, we asked surveyors to rank themes in order of importance and found the top 3 to be DEI, STEM-focused content, and historical narratives. This research shows the importance of creating interactive material tailored to parents’ needs: curriculum-focused content that continually engages and excites their kids.
+
+
+Case Study: Magic School Bus Digital Apps
+The Magic School Bus brand, long synonymous with engaging science education, pivoted in the 2010s from traditional print and television formats into interactive digital apps. Scholastic, which manages the brand, leveraged this transformation to boost classroom engagement and learning outcomes, while opening new revenue streams through digital licensing and subscription models.
+Scholastic developed interactive apps that transformed the static narrative of the books into immersive learning adventures. Features included animated environments, interactive quizzes, and virtual field trips that allowed students to explore scientific concepts in a hands-on manner. To ensure widespread classroom adoption, Scholastic partnered with educators to align the apps with state curriculum standards. Bulk licensing agreements were secured with school districts and libraries, contributing to steady, recurring revenue.
+With an average session time exceeding 10 minutes, high retention rates led to sustained subscriptions and further classroom adoption. Internal pilot studies and industry reports indicated that classrooms using these digital apps experienced a 26% increase in student engagement and 18% increase in test scores. Overall, the digital channel generated approximately 27% higher revenue through rejuvenated interest in the print editions and related merchandise, contributing to overall brand revenue growth[1].
+The enduring success of "The Magic School Bus" series “produced nearly 100 million books, establishing a multimedia empire that continues to thrive and influence educational content today” demonstrating the potential for sustained competitive advantage in the digital education market[2]. "The Magic School Bus" revolutionized science education by tapping into children’s “inherent sense of wonder” and “presented a model of learning through experience that was inclusive and inquiry based.” making complex concepts accessible through engaging storytelling[3]. By leveraging advanced technologies and adapting to socio-cultural trends, educational content providers can create personalized, immersive experiences that cater to decreasing attention spans and transform the perception of educational content.
+If we are able to apply similar principles to the OPCTW series, we can potentially remove the stigma associated with book-sourced learning materials and convert brand reach into additional revenue streams through digital licensing, subscription models, and merchandise sales. The digital education market's projected growth to $545.38 billion by 2030 underscores the significant opportunity for innovative educational content that combines entertainment with learning[4]. By combining engaging gamification of educational content, we can gamify learning directly, making education more accessible to a new generation of students[5].
+
+
+Recommendation 1: Increasing Brand Reach through Roblox Roleplay Game
+To attract a new audience to Ordinary People Change the World, we recommend implementing a Roblox game to transform OPCTW’s inspirational book content into an immersive, curriculum-aligned educational experience for consumers. Roblox has over 70 million daily users, 60% under the age of 16, which ultimately offers vast exposure. Scholastic evaluated their game release as a 25%+ increase in engagement and 27% increase in aggregate revenue within their Magic School Bus channels[6]. As most parents and educators purchase books based on their kids or students mentioning them, this game will lessen books’ stereotype as tiresome and boring and instead transfer the emotion of joy of playing Roblox games to OPCTW books[7].
+This game would consist of a thematic narrative, where players assume the role of a young hero inspired by the OPCTW books. Players would overcome obstacles using creativity and problem-solving that tests vocabulary or historical facts, ultimately mirroring the books’ inspirational narratives.
+Fully implementing the game would take up to three months to develop the concept and curriculum design[8]. The development and pilot testing process would take roughly 3-6 months, consisting of building the game itself on Roblox Studio using Lua scripting, as well as conducting pilot tests in classrooms. Finally, the launch and scale process would on average be completed in 6-9 months, to roll out the game in pilot districts, secure bulk licensing deals, and promote the game via Roblox Education channels and OPCTW’s existing brand networks.
+However, we recognize the substantial development cost required for game design, coding, and testing. Through our example cost analysis, we expect a sample game to cost around $200,000, with the Roblox Creator fund grant covering $500,000+ according to our documented needs[9][10]. Roblox is rapidly attempting to enter the education sector, funding numerous education games like AVID Creator Planet and Wordsmith[11]. This grant can be reapplied for if not awarded on the first try, and is prorated over numerous milestones during the development of the game, eliminating the financial risk regardless of the outcome of the game.
+Teachers and school administrators may be reluctant to integrate the game into lesson plans if they do not see clear educational value. Similar to Scholastic, we can conduct pilot studies within classrooms and provide valuable feedback to refine gameplays. OPCTW can work directly with teachers to align the game with curriculum standards, provide lesson plans, and conduct pilot programs in select schools to demonstrate its effectiveness in enhancing student learning while establishing bulk licensing deals and guaranteed adoption of the platform.
+
+
+Recommendation 2: Celebrity Narrated Video Series
+To engage more of today’s digitally active youth, OPCTW should introduce a high-quality, celebrity-narrated video series that combines animated storytelling with its existing educational content. With children ages 8 to 12 spending an average of 4 to 6 hours per day on screens, OPCTW should capitalize on the opportunity to capture this audience by creating content that is both educational and entertaining.[12] This initiative could initially be launched as free, high-engagement content on YouTube and social media platforms to maximize reach and engagement[13].
+The project should begin with a pilot phase, featuring 3 to 5 episodes on prominent figures such as Amelia Earhart, Abraham Lincoln, and Harriet Tubman. Displaying 2D animations inspired by the existing book illustrations could manage production costs while maintaining the visual appeal and brand aesthetic[14]. The series could also integrate interactive elements, like quizzes and viewer prompts, to further engage children and enhance their learning experience.
+To maximize impact, the initial distribution strategy should focus on YouTube, given its significant reach among children. With studies showing that 81% of U.S. parents allow their children to watch YouTube, OPCTW should capitalize on the platform’s massive reach and engagement to connect with millions of young viewers[15][16]. Strategic timing for video uploads such as around national holidays or days of remembrance could boost overall viewership. Additionally, OPCTW should collaborate with educational influencers, parenting bloggers, and school systems to drive awareness and gather valuable insights for future content development.
+Considering OPCTW’s desire to control costs, starting with 2D animation based on existing book illustrations will maintain both the visual appeal and budget constraints[17]. Further, we understand OPCTW has struggled to find cooperative celebrities in the past, and we plan to focus on those with either a connection to the real life character and/or activists that want to make an impact.
+By launching a celebrity-narrated video series, OPCTW can engage a digitally-savvy audience while reinforcing its educational mission. With a thoughtful approach to content strategy, narrator selection, and partnerships, this initiative can significantly expand the brand's presence and create sustainable revenue streams.
+________________
+
+
+Appendix A
+Roblox Game Detailed Budget, Storytelling, and Funding Estimations
+
+
+For the purposes of estimating the costs of developing a similar Roblox game, these calculations will explore the development of the roleplay game surrounding the life and legacy of Serena Williams. It’s important to note that real costs will vary according to ideas associated with the real game, but this will provide insights into the ballpark estimate of building a similar game.
+I. PROJECT OVERVIEW AND STORYTELLING EXPERIENCE
+Narrative-Driven Roleplay:
+* Players “step into the shoes” of Serena Williams at pivotal moments in her life.
+* The game interweaves interactive storytelling with branching dialogue, reenactments of significant career events (e.g., major Grand Slam matches, rigorous training sessions), and decision-based challenges that emphasize perseverance, discipline, and sportsmanship.
+Educational Goals:
+* Historical Accuracy & Inspirational Learning:
+   * Collaborate with sports historians and educators to ensure the narrative is factually sound and culturally sensitive.
+   * Integrate mini-games and quizzes that reinforce key historical facts and aspects of professional tennis.
+   * Feature cinematic cutscenes and narrative voice overs that guide players through personal and professional challenges, deepening engagement.
+Interactive Storytelling Techniques:
+* Branching Narrative Paths: 
+* Multiple story arcs allow for “what-if” scenarios, enhancing replayability and critical thinking.[18]
+Immersive Environments:
+* Detailed 3D settings (tennis courts, training facilities, media rooms) provide authentic backdrops.
+* Multimedia Integration:
+* Professional voice acting, period-appropriate music, and realistic sound effects enhance immersion.
+II. DETAILED BUDGET BREAKDOWN (6-MONTH DEVELOPMENT CYCLE)
+Based on industry data and comparable projects, similar high-production experiences range from $150,000 to over $500,000. The proposed budget below is designed for quality while remaining cost-effective.
+Industry Background on Hourly Rates
+Experienced game developers in cost‐effective regions (e.g., Eastern Europe, parts of Asia, or Latin America) typically charge $25–$45 per hour for mid‐range projects 19,20.
+Naavik’s analysis of Roblox developer unit economics provides insight into how many hours a typical developer invests in Roblox experiences. While smaller experiences might rely on part‐time devs, a more robust project (like this Serena Williams roleplay game) typically involves full‐time development hours, around 160 hours/month per developer, where professional studios build 4 games per 6 month period18. However, considering the scale of this game or multiple roleplay games, let us assume that it will take 6 months to build this game.
+1). Core Development & Production Team ($110,000 – $125,000)
+Lead Programmer / Project Manager ($25-$45/hr):
+Est. Cost: $35/hr * 160 hrs/month = 5600/month, rounded to 5500.
+* Role: Architect game mechanics, integrate narrative systems, manage milestones.
+* Cost: ~$5,500/month x 6 months = $33,000
+3D Environment Artists / Builders (2 positions, $22-$30/hr):
+Est. Cost: $25/hr * 160 hrs/month = $4,000[19]
+* Role: Create detailed environments and character models.
+* Cost: ~$4,000/month each x 6 months = $48,000 total
+UI/UX Design ($28-$35/hr):
+Est Cost: $30/hr * 160 hours / month = 4800 total [20]
+* Role: Design intuitive interfaces for interactive narrative elements.
+* Cost: ~$4,800/month x 6 months = $28,800
+Sound Designer & Composer ($20-$30/hr):
+Est. Cost = $25/hr * 100 hours / month = $2,500
+* Role: Develop original music, sound effects, and coordinate voice integrations.
+* Cost: ~$2,500/month x 6 months = $15,000
+* Subtotal: Approximately $111,000
+2). Narrative, Voice Acting, & Educational Content ($15,000 – $25,000)
+Scriptwriting & Narrative Design:
+Est Cost: $40/hr
+* Develop detailed storytelling with branching dialogue and educational content.
+* Estimated Cost: $5,000 – $7,000[21]
+Professional Voice Acting ($200-$400/hr):
+Est Cost: $300/hr * 20 hours = $6000[22]
+* High-quality recordings for narrations and character dialogue.
+* Estimated Cost: $5,000 – $8,000
+Historical & Educational Consultation ($50-$80/hr):[23]
+Est. Cost: $65/hr * 100 hrs = $6500
+* Expert input to ensure accuracy and depth.
+* Estimated Cost: $5,000 – $10,000
+Subtotal Range: $15,000 – $25,000
+3). Marketing, Community Engagement & Promotion ($30,000 – $35,000) 
+Est. Rate:  20%-30% of production budget
+Pre-Launch Marketing:
+* Social media campaigns, influencer partnerships, and teaser videos.
+Platform Ads & PR Outreach:
+* Targeted in-platform advertising and press releases.
+Estimated Total: $30,000 – $35,000
+4). Quality Assurance, Testing & Iteration ($10,000 – $12,000)
+QA & Beta Testing ($15-$25/hr):
+* Engage testers for iterative feedback, bug bounties, and performance reviews.
+* Estimated Total: $10,000 – $12,000
+5). Miscellaneous, Licensing & Contingencies ($10,000 – $15,000)
+Est. Rate: 10% of total Budget
+Licensing Fees:
+* Costs for archival images or third-party assets if required.
+* Additional Animation & Special Effects:
+* Budget for high-end cinematic sequences or extra visual polish.
+Contingency Reserve:
+* Unforeseen expenses or scope adjustments.
+* Estimated Total: $10,000 – $15,000
+Overall Estimated Budget:
+* Total: Approximately $179,000 – $200,000
+(Note: An expanded scope such as advanced multiplayer features or enhanced cinematics could raise costs toward $250,000 or more.)
+III. LIKELIHOOD OF ACCEPTANCE INTO THE ROBLOX CREATOR FUND
+Acceptance Statistics & Estimates:
+* Official Data: Roblox does not publicly disclose the exact acceptance rate, but the likelihood increases towards mobile multiplayer games, which our proposal can prioritize within our pitch deck when applying for the Roblox Creator Fund grant.
+Key Factors Influencing Acceptance:
+* Project Uniqueness & Innovation: Projects that push boundaries, especially with robust multiplayer, social, and mobile-optimized features, are more likely to be accepted.
+* Quality of Application Materials: A comprehensive pitch deck, clear milestone schedules, and detailed budgeting improve acceptance chances.
+* Team Credentials: Past experience and technical expertise on the platform are strong indicators of success.
+Analysis of Funded Educational Projects
+Strategic Investment in Education
+Roblox has emerged not only as a leading gaming platform but also as an innovative education partner. Its revamped Creator Fund is structured to provide substantial upfront investments—typically starting at a minimum of $500,000 per project—to support projects that blend interactive gameplay with educational objectives. This significant capital allocation is designed to lower financial barriers for developers and enable the creation of high-quality, curriculum-aligned experiences[24].
+AVID Creator Planet
+One prime example is AVID Creator Planet. Developed in collaboration with AVID, this project transforms the conventional classroom by creating an immersive, virtual environment on Roblox. Geared toward high school students (grades 9–12), the platform integrates STEM and problem-solving challenges directly into the gameplay. By aligning its content with educational standards, such as the Next Generation Science Standards (NGSS), AVID Creator Planet not only makes learning engaging but also practical. The hands-on, interactive nature of the game supports the development of durable skills such as critical thinking, collaboration, and creative problem solving, thereby bridging the gap between digital play and academic enrichment[25].
+Analysis of the Wordsmith Game (Words of Power)
+Words of Power is an innovative literacy game developed by Mrs Wordsmith in partnership with Roblox. Designed to transform vocabulary learning into an immersive, game-based experience, the game leverages elements of role-playing and explicit vocabulary instruction. In Words of Power, players choose a “word of power” and use it to battle fantastical enemies, thereby reinforcing pronunciation, spelling, and meaning through repeated exposure. This approach aligns with both the Science of Reading and social-emotional learning (SEL), as the game helps students build the vocabulary they need to express complex feelings.
+Market Success and Growth Metrics
+According to a 2018 Business Wire press release, Mrs Wordsmith experienced triple-digit growth year-over-year and shipped over 200,000 units since its launch. The press release noted that the company’s U.S. store, launched in June 2018, accounted for 85% of its revenue at that time. These figures highlight the rapid market acceptance of Mrs Wordsmith’s products and underscore the scalability of their game-based learning approach[26]. Furthermore, Mrs Wordsmith’s official messaging now reaches more than 300,000 students worldwide, indicating a significant impact on English Language Arts instruction in diverse educational settings.
+Broader Implications for the Education Sector
+Both projects reflect a deliberate move by Roblox to expand its role in the educational landscape. By providing sizable funding through its Creator Fund, Roblox is enabling developers to take creative risks and develop projects that go beyond traditional gaming. The educational initiatives not only offer a fresh, interactive medium for learning but also serve to foster skills like digital literacy and problem solving. This model is particularly beneficial in an era where conventional teaching methods are being reimagined to incorporate technology and gamification, ultimately contributing to a more engaging and dynamic learning experience for students.
+IV. PROJECT TIMELINE & MILESTONES (6-MONTH DEVELOPMENT CYCLE)
+Month 1: Concept Finalization & Pre-Production
+* Define project scope, create storyboards, and establish team roles.
+* Kick off meetings with educational consultants.
+Month 2: Core Mechanics & Environment Prototyping
+* Develop basic gameplay loops and build initial 3D environments.
+* Launch early-stage marketing teasers.
+Month 3: Narrative Integration & Voice Recording
+* Finalize the script and record voice-overs.
+* Integrate narrative elements with gameplay mechanics.
+Month 4: Full Environment Build-Out & UI/UX Enhancement
+* Expand detailed environments and refine user interfaces.
+* Initiate targeted marketing campaigns with influencer previews.
+Month 5: Quality Assurance & Polishing
+* Conduct rigorous QA testing and bug fixing.
+* Prepare final assets and marketing trailers.
+Month 6: Launch & Post-Launch Support
+* Officially release the game on Roblox.
+* Continue post-launch community engagement and iterative improvements.
+V. CONCLUSION
+The proposed educational roleplay game, “The Life and Legacy of Serena Williams,” is designed as an immersive, narrative-rich experience that educates and inspires. With a detailed six-month roadmap and an estimated budget of approximately $179,000 – $200,000, the project is positioned to deliver high production value and engaging storytelling.
+A strong pitch deck, detailed budgeting, and a compelling project vision that aligns with Roblox’s strategic priorities will be critical. With careful planning and execution, the project stands a promising chance of securing funding and achieving success on the platform.
+________________
+Appendix B
+Celebrity-Narrated 2D Animation Videos
+To expand its reach with minimal upfront investment, OPCTW’s narrated video series should be developed as an extension of its existing content production capabilities. Rather than requiring a large-scale animation budget or celebrity endorsements, this initiative can be built using OPCTW’s current creative team, repurposed book illustrations, and prominent figures as narrators who align with the values of the historical characters featured. By leveraging these cost-efficient strategies, OPCTW can establish a foothold in digital media, test audience engagement, and scale the initiative over time without significant financial risk.
+
+
+1. Market Demand and Competitive Differentiation
+Consumer behavior has increasingly shifted toward digital-first educational content, particularly on platforms like YouTube, where children seek engaging, easy-to-digest learning experiences. According to Common Sense Media, children aged 8-12 spend an average of 4-6 hours per day on screens, with YouTube being the most-used platform for educational content. YouTube Kids alone has over 35 million active users worldwide, with educational content making up a significant portion of its most-watched videos. The demand for high-quality, history-based learning content is evident in the success of platforms like PBS Kids, Netflix’s StoryBots, and TED-Ed, which have each garnered millions of views and lucrative licensing deals.
+
+
+However, OPCTW has a unique opportunity to differentiate itself from existing content. Many educational history videos focus on fact-based summaries, offering brief explanations rather than emotionally compelling storytelling. OPCTW’s approach should focus on immersive narratives that place viewers inside the stories of historical figures, allowing them to experience key moments in history through a personal lens. By pairing this story-driven approach with narrators who have a deep connection to the featured historical figure’s legacy, OPCTW can create a more impactful and resonant learning experience.
+
+
+2. Cost-Efficient Production Model
+Unlike fully animated educational series that can cost $20,000-$30,000 per minute of high-quality animation, OPCTW can take a motion-based 2D animation approach, significantly reducing production costs while maintaining a visually engaging style. This approach is commonly used in digital audiobooks and documentary storytelling, and ultimately  involves repurposing existing book illustrations and applying simple movements, transitions, and visual effects. Software such as Adobe Character Animator, After Effects, or Toon Boom Harmony can be used to bring static illustrations to life at a fraction of the cost of full-scale animation.
+
+
+Narration should come from prominent figures with a strong tie to the historical character, rather than traditional celebrities. This could include historians, educators, activists, or well-known authors whose work aligns with the episode’s themes. For example, a civil rights advocate could narrate an episode about Rosa Parks, while a female astronaut could voice an episode on Sally Ride. This will reinforce OPCTW’s mission, increase credibility, and create an additional organic marketing opportunity, as narrators with existing followings can help promote the series through their own platforms.
+
+
+To further minimize costs, the scripting and adaptation process can be handled in-house using OPCTW’s existing editorial team, ensuring the integrity of the historical storytelling. Sound design and background music can be sourced from royalty-free or low-cost licensing options, further reducing expenses without compromising production quality.
+
+
+3. Organic Growth and Distribution Strategy
+Criteria for Selecting Narrators
+Choosing the right narrators is crucial for the initial traction and long term success of the series. The following criteria should guide the selection process
+* Educational Values: Narrators should have a strong connection to the historical figure they are voicing, reinforcing OPCTW’s educational mission. For example, Lin-Manuel Miranda narrating Alexander Hamilton or Kristen Bell narrating Amelia Earhart’s story.
+* Branch Reach: The narrator should already have a substantial following, particularly within demographics that include parents, educators, and young audiences, building awareness and attracting viewers organically.
+* Positive Public Image: Narrators should have a reputable and inspiring public persona that resonates with OPCTW’s core values. Their influence can serve as a role model for young viewers, reinforcing key educational messages.
+
+
+Rather than investing heavily in paid advertising or sponsorships at launch, OPCTW should focus on organic growth through YouTube’s discovery algorithms, social media engagement, and educational partnerships. YouTube, which accounts for 40% of children’s total online video consumption (Pew Research, 2022), prioritizes watch time and engagement, meaning well-produced, longer-form educational content has a strong chance of gaining traction without paid promotion.
+
+
+To maximize reach, OPCTW should optimize its video metadata, including titles, descriptions, and tags, using commonly searched educational terms such as “history for kids” or “biographies for students.” Posting videos at optimal engagement times—weekday afternoons (3-5 PM) and Saturday mornings—aligns with peak viewership patterns. Additionally, OPCTW should embed QR codes in its books that direct readers to the corresponding video content, creating a seamless connection between its physical and digital offerings.
+
+
+Partnerships with teachers, homeschooling networks, and educational influencers will also play a key role in early traction. Studies show that 58% of K-5 teachers use YouTube as a classroom learning tool (EdWeek, 2023), meaning that OPCTW can actively encourage classroom use of its videos. Providing free lesson plans and discussion guides alongside each episode would further incentivize teachers to integrate the series into their curriculum.
+
+
+4. Minimal Upfront Budget and Scalable Monetization
+By focusing on existing resources and eliminating costly production elements, OPCTW can launch this initiative with an estimated pilot budget of $22,500 - $35,000 for five episodes. This includes script adaptation ($5,000 - $7,500), motion-based animation ($10,000 - $15,000), narration honorariums ($2,500 - $5,000), and sound design/editing ($5,000 - $7,500).
+
+
+While the series would initially be free to access, OPCTW can experiment with monetization models once a substantial audience is established. YouTube monetization, which can generate $5,000 - $15,000 per million views, could provide a passive revenue stream over time. Additionally, premium, subscription-based content offerings could be introduced, such as extended episodes, behind-the-scenes content, or exclusive interviews with historical experts. Other long-term revenue streams could include licensing deals with educational streaming services like PBS Kids or Scholastic, direct sponsorships from educational brands, or integration into digital learning platforms used in schools.
+
+
+Long-Term Growth and Expansion Plan
+Once the pilot phase proves successful, OPCTW should expand the series in strategic ways that allow for audience retention and monetization growth. Future initiatives could include multi-episode story arcs that delve deeper into historical events, such as “The Civil Rights Movement” or “Trailblazing Women in Science.” Expanding to bilingual versions in Spanish, French, or Mandarin would allow OPCTW to capture a growing international audience, where demand for educational YouTube content is increasing 70% year-over-year (YouTube Global Insights, 2023).
+
+
+Additionally, OPCTW could introduce interactive “choose-your-own-adventure” videos, where viewers make decisions that influence the historical narrative, further enhancing engagement and making the learning experience more immersive.
+
+
+5. Risk Assessment and Mitigation Strategies
+Several potential challenges could arise during implementation. One of the main concerns is low initial viewership, which can be mitigated by leveraging OPCTW’s existing book audience, engaging educational influencers, and ensuring content is optimized for YouTube’s algorithm. Another risk is securing credible narrators at a low cost, which can be addressed by partnering with mission-driven educators, authors, or activists who see value in contributing to educational storytelling. Content consistency is also a key factor in audience retention—establishing a structured production schedule with pre-planned scripts and release timelines will help ensure regular, high-quality video rollouts.
+
+
+Conclusion
+By keeping production lean, prioritizing organic growth, and leveraging narrators who align with historical figures rather than traditional celebrities, OPCTW can launch a high-impact, scalable digital initiative with minimal financial risk. The series will not only increase engagement with OPCTW’s books but also open doors for future monetization through ad revenue, licensing, and subscription-based educational content. This approach ensures OPCTW’s long-term relevance in an increasingly digital learning landscape while reinforcing its core mission: bringing history to life for young learners in an engaging and accessible way.
+
+
+
+
+
+
+
+
+
+
+________________
+
+
+Appendix C
+Children’s Book Consumers Survey Data
+
+
+  
+
+Figure A. Primary drivers for parents purchasing childrens’ books.
+
+
+  
+
+Figure B. Factors influencing children’s book purchases among parents, students, and educators.
+
+
+
+
+Appendix D
+Projected Earnings for Roblox Game
+1. User Base & Conversion Assumptions
+We assume the game will attract approximately 500,000 unique players over its peak engagement period. From this user base:
+* Book Sales Conversion: A 1% conversion rate leads to 5,000 book buyers.
+* Subscription & Merchandise Conversions: A conservative 0.5% conversion rate is applied for both subscription sign-ups and merchandise purchases.
+2. Revenue Breakdown 
+Book Sales:
+* 5,000 buyers × $17 (average retail price) = $85,000
+(Current market listings for OPCTW titles indicate average hardcover prices around $1727)
+Subscription Model:
+* 500,000 players × 0.5% conversion = 2,500 subscribers
+* Assuming $50 revenue per subscription = $125,000
+Merchandise Sales:
+* 500,000 players × 0.5% conversion = 2,500 merchandise purchases
+* At an average profit of $20 per item = $50,000
+Additional Revenue (Licensing, Educational Programs & Sponsorships):[27]
+* Estimated at approximately $150,000, based on industry analogies where cross‑platform digital synergies boost ancillary revenue.
+Total Incremental Revenue:
+$85,000 + $125,000 + $50,000 + $150,000 ≈ $410,000
+3. Cost and Profit Margin Considerations
+* Based on publicly reported operating EBITDA margins for PRH (approximately 14–16%)28, the digital integration, thanks to lower variable costs, can achieve a higher project-specific margin.
+* We estimate that the dedicated costs for developing, launching, and maintaining the game (including periodic updates, support, and targeted marketing efforts) are roughly $200,000 per year per appendix A.II.
+Estimated Net Profit:
+$410,000 (total revenue) – $200,000 (dedicated costs) ≈ $210,000 + Roblox Grant
+4. Synergy and Strategic Benefits
+In addition to the direct revenue stream, the game is expected to drive higher engagement for OPCTW’s other channels, potentially improving long-term conversion rates and customer lifetime value. These broader synergies can lead to incremental revenue beyond the immediate projection.[28]
+Estimated Revenue Streams
+Book Sales (Physical, Digital, Audiobooks)                85,000
+Subscription Model (Book Box)                        125,000
+Merchandise        50,000
+Licensing & Partnerships        60,000
+Educational Programs                70,000
+Corporate Sponsorships        25,000
+Total Revenue        325,000
+________________
+Appendix E
+Targeted Marketing Strategy
+Brand Positioning
+1. OPCTW needs to leverage the strong characters and value-focused storylines through an emotional appeal. This includes an emphasis on marketing efforts towards teachers, librarians, and grandparents who will likely push young children towards topics such as Abraham Lincoln and Helen Keller. 
+2. Aligning book launches and advertisements with national holidays, such as promoting historical black figures such as Rosa Parks and Martin Luther King Jr. during Black History Month. This can also be applied to holidays, such as promoting the Walt Disney storyline during spring or summer break as families vacation at DisneyLand. 
+
+
+Strategic Partnerships
+1. Outreach to elementary schools across the nation to promote books in classrooms, as well as tailor content to curriculums and identify potential partnerships for testing the Roblox Game prototypes. 
+2. Collaborate with educational resources, such as Kumon, where driven students go to further their learning outside of school. This will attract an audience of excited and engaged students to interact with OPCTW’s materials, cultivating positive brand awareness and market the books through word-of-mouth.
+
+
+Elevating Social Media Presence
+1. Establish a strong presence of adult-heavy social media platforms such as Facebook and LinkedIn, focusing on Facebook to advertise to parents and grandparents and LinkedIn to reach educational professionals. 
+2. Develop vibrant and eye-catching flyers and promotional videos to distribute across Instagram, TikTok, Pinterest, the OPCTW website, and email marketing. Specifically, on the website and through emails, digital materials can include interactive quizzes and links to more content. 
+3. Emphasize SEO when “children’s books” and “educational material” or other related keywords are searched to capture users already looking for similar products.
+
+
+________________
+[1]Scholastic Corporation. Scholastic Digital Impact Report 2015. 2015, www.scholastic.com/digital-impact-report-2015. Accessed 20 Feb. 2025.
+[2]Forward Pathway. “The Lasting Impact of The Magic School Bus on Children’s Science Education.” Forward Pathway, https://www.forwardpathway.us/the-lasting-impact-of-the-magic-school-bus-on -childrens-science-education. Accessed 21 Feb. 2025.
+[3] Bartlett, Kelsey. “What a Magic School Bus Taught Us About Science Education.” Virginia Tech News, 14 Jan. 2025, https://news.vt.edu/articles/2024/12/clahs-matthew-wisnioski-school-bus.html. Accessed 21 Feb. 2025.
+[4] Forward Pathway. “The Lasting Impact of The Magic School Bus on Children’s Science Education.” Forward Pathway, https://www.forwardpathway.us/the-lasting-impact-of-the-magic-school-bus-on -childrens-science-education. Accessed 21 Feb. 2025.
+[5] Bartlett, Kelsey. “What a Magic School Bus Taught Us About Science Education.” Virginia Tech News, 14 Jan. 2025, https://news.vt.edu/articles/2024/12/clahs-matthew-wisnioski-school-bus.html. Accessed 21 Feb. 2025.
+[6] Scholastic Corporation. Scholastic Digital Impact Report 2015. 2015, www.scholastic.com/digital-impact-report-2015. Accessed 20 Feb. 2025.
+[7] Appendix C
+[8] (Appendix A.I)
+[9] “Roblox Launches $35 Million Fund for Creators: Answer to TikTok?” Fast Company, n.d., https://www.fastcompany.com/91063631/roblox-launches-35-million-fund-creators-answer-to-tiktok. Accessed 21 Feb. 2025.
+[10] (Appendix A.II)
+[11] (Appendix A.IV)
+[12] American Academy of Child and Adolescent Psychiatry. "Children and Watching TV." AACAP, March 2018, https://www.aacap.org/AACAP/Families_and_Youth/Facts_for_Families/FFF-Guide/Children -And-Watching-TV-054.aspx.
+[13] (Appendix B.I)
+[14] (Appendix B.II)
+[15] Rideout, V., & Robb, M. B. (2020). The Common Sense census: Media use by kids age zero to eight. Common Sense Media. https://www.commonsensemedia.org/research/the-common-sense-census-media- use-by-kids-age-zero-to-eight-2020
+[16] (Appendix B.I)
+[17] (Appendix B.II)
+[18]Taylor, David. “A Look At Roblox Developer Unit Economics.” Naavik Digest, 24 July 2022, https://naavik.co/digest/roblox-developer-unit-economics/. Accessed 21 Feb. 2025.
+
+
+[19] “Sound Designer Salaries.” Zippia, https://www.zippia.com/salaries/sound-designer/. Accessed 21 Feb. 2025.
+[20] “UI/UX Agencies Pricing.” Clutch, https://clutch.co/agencies/ui-ux/pricing. Accessed 21 Feb. 2025.
+
+
+[21] “Narrative Designer Salary.” ZipRecruiter, https://www.ziprecruiter.com/Salaries/Narrative-Designer-Salary. Accessed 21 Feb. 2025.
+[22] “Video Game Voice Over Rates.” GoLocalise, https://golocalise.com/blog/video-game-voice-over-rates/. Accessed 21 Feb. 2025.
+[23] “Video Game Consultant Salary.” ZipRecruiter, https://www.ziprecruiter.com/Salaries/Video-Game-Consultant-Salary. Accessed 21 Feb. 2025.
+[24] “Roblox Creator Fund Monetization: Clip It Short Form Video.” Tubefilter, 20 Mar. 2024, https://www.tubefilter.com/2024/03/20/roblox-creator-fund-monetization-clip-it-short-form-video/. Accessed 21 Feb. 2025.
+[25] AVID Creator Planet: Coming Soon on Roblox. AVID Open Access. Published 8 months ago. Retrieved February 21, 2025, from https://explore.avid.org/creatorplanet/
+
+
+[26] “Edutainment Brand Mrs Wordsmith Raises $11M in Funding for U.S. and China Expansion.” Business Wire, 17 Oct. 2018, www.businesswire.com/news/home/20181017005534/en/Edutainment-Brand-Mrs- Wordsmith-Raises-11M-in-Funding-for-U.S.-and-China-Expansion.
+[27]Ordinary People Change the World Series.” Barnes & Noble, https://www.barnesandnoble.com/b/ordinary-people-change-the-world-series/_/N-2fec. Accessed 21 Feb. 2025.
+[28] “Penguin Random House.” Bertelsmann SE & Co. KGaA, https://www.bertelsmann.com/investor-relations/bertelsmann-at-a-glance/financial-figures/penguin-random-house/. Accessed 21 Feb. 2025.

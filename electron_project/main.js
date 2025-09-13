@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const screenshot = require('screenshot-desktop');
 const { spawn } = require('child_process');
+require('dotenv').config();
 
 // Helper for packaged app paths
 const RES = (...p) => app.isPackaged
@@ -189,6 +190,11 @@ app.whenReady().then(() => {
   createTray();
   setupGlobalShortcuts();
   startGestureDetection();
+  
+  // Initialize overlay service
+  if (overlayService) {
+    await overlayService.initialize();
+  }
 
   // On macOS, re-create window when dock icon is clicked
   app.on('activate', () => {
@@ -211,6 +217,11 @@ app.on('before-quit', () => {
   if (gestureProcess) {
     gestureProcess.stdin.write(JSON.stringify({action: 'quit'}) + '\n');
     gestureProcess.kill();
+  }
+  
+  // Clean up overlay service
+  if (overlayService) {
+    overlayService.cleanup();
   }
 });
 
@@ -270,6 +281,22 @@ async function captureScreenshot() {
         filePath: filePath,
         timestamp: new Date().toISOString()
       });
+    }
+    
+    // Show overlay when screenshot is captured
+    if (overlayService && !overlayService.isOverlayVisible) {
+      console.log('📸 Screenshot captured, showing overlay...');
+      // Create a mock screenshot object for overlay
+      const mockScreenshot = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        filename: filename,
+        filePath: filePath
+      };
+      
+      overlayService.addToScreenshotQueue(mockScreenshot);
+      const actions = overlayService.generateMockActions(mockScreenshot);
+      overlayService.showOverlay(actions);
     }
     
     return filename;
@@ -725,6 +752,126 @@ ipcMain.handle('open-screenshot-folder', (event, filePath) => {
   const path = require('path');
   const folderPath = path.dirname(filePath);
   shell.showItemInFolder(filePath);
+});
+
+// URL Context Retrieval Handlers
+const ContextService = require('./services/contextService');
+const OverlayService = require('./services/overlayService');
+let contextService;
+let overlayService;
+
+// Initialize context service and overlay service
+try {
+  contextService = new ContextService();
+  overlayService = new OverlayService();
+  console.log('✅ Services initialized successfully');
+  // IPC Handlers for URL Context Retrieval
+  ipcMain.handle('retrieve-url-context', async (event, url, query) => {
+    try {
+      const result = await contextService.retrieveUrlContext(url, query);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        url: url
+      };
+    }
+  });
+
+  // IPC Handler for Google Drive content extraction
+  ipcMain.handle('extract-google-drive', async (event, url, query) => {
+    try {
+      const result = await contextService.handleGoogleDriveUrl(url, query);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        url: url,
+        service: 'google_drive'
+      };
+    }
+  });
+
+  // IPC Handler for Google Drive service initialization
+  ipcMain.handle('init-google-drive', async (event, credentials) => {
+    try {
+      const success = await contextService.googleDriveService.initialize(credentials);
+      return {
+        success: success,
+        message: success ? 'Google Drive service initialized' : 'Failed to initialize Google Drive service'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+} catch (contextError) {
+  console.error('Failed to initialize services:', contextError);
+  console.error('Stack trace:', contextError.stack);
+}
+
+ipcMain.handle('get-url-summary', async (event, url) => {
+  try {
+    const contextService = new ContextService();
+    return await contextService.getUrlSummary(url);
+  } catch (error) {
+    console.error('URL summary error:', error);
+    return {
+      success: false,
+      error: error.message,
+      url: url
+    };
+  }
+});
+
+ipcMain.handle('get-raw-content', async (event, url, useBrowser = false) => {
+  try {
+    const contextService = new ContextService();
+    return await contextService.getRawContent(url, useBrowser);
+  } catch (error) {
+    console.error('Raw content retrieval error:', error);
+    return {
+      success: false,
+      error: error.message,
+      url: url
+    };
+  }
+});
+
+// Handle batch URL context retrieval
+ipcMain.handle('batch-retrieve-url-context', async (event, urls, query = null) => {
+  try {
+    const contextService = new ContextService();
+    return await contextService.batchRetrieveUrlContext(urls, query);
+  } catch (error) {
+    console.error('Batch URL context retrieval error:', error);
+    return urls.map(url => ({
+      success: false,
+      error: error.message,
+      url: url
+    }));
+  }
+});
+
+// Handle cache management
+ipcMain.handle('clear-context-cache', async (event) => {
+  if (contextService) {
+    contextService.clearCache();
+    return { success: true, message: 'Cache cleared successfully' };
+  }
+  return { success: false, error: 'Context service not available' };
+});
+
+ipcMain.handle('get-cache-stats', async (event) => {
+  if (contextService) {
+    return { success: true, stats: contextService.getCacheStats() };
+  }
+  return { success: false, error: 'Context service not available' };
 });
 
 // IPC handlers for gesture and screenshot functionality
