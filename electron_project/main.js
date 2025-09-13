@@ -156,11 +156,16 @@ function createTray() {
 }
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow();
   createTray();
   setupGlobalShortcuts();
   startGestureDetection();
+  
+  // Initialize overlay service
+  if (overlayService) {
+    await overlayService.initialize();
+  }
 
   // On macOS, re-create window when dock icon is clicked
   app.on('activate', () => {
@@ -183,6 +188,11 @@ app.on('before-quit', () => {
   if (gestureProcess) {
     gestureProcess.stdin.write(JSON.stringify({action: 'quit'}) + '\n');
     gestureProcess.kill();
+  }
+  
+  // Clean up overlay service
+  if (overlayService) {
+    overlayService.cleanup();
   }
 });
 
@@ -243,6 +253,22 @@ async function captureScreenshot() {
         mainWindow.show();
         mainWindow.focus();
       }
+    }
+    
+    // Show overlay when screenshot is captured
+    if (overlayService && !overlayService.isOverlayVisible) {
+      console.log('📸 Screenshot captured, showing overlay...');
+      // Create a mock screenshot object for overlay
+      const mockScreenshot = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        filename: filename,
+        filePath: filePath
+      };
+      
+      overlayService.addToScreenshotQueue(mockScreenshot);
+      const actions = overlayService.generateMockActions(mockScreenshot);
+      overlayService.showOverlay(actions);
     }
     
     return filename;
@@ -621,11 +647,15 @@ ipcMain.handle('open-screenshot-folder', (event, filePath) => {
 
 // URL Context Retrieval Handlers
 const ContextService = require('./services/contextService');
+const OverlayService = require('./services/overlayService');
 let contextService;
+let overlayService;
 
-// Initialize context service
+// Initialize context service and overlay service
 try {
   contextService = new ContextService();
+  overlayService = new OverlayService();
+  console.log('✅ Services initialized successfully');
   // IPC Handlers for URL Context Retrieval
   ipcMain.handle('retrieve-url-context', async (event, url, query) => {
     try {
@@ -672,7 +702,8 @@ try {
   });
 
 } catch (contextError) {
-  console.error('Failed to initialize context service:', contextError);
+  console.error('Failed to initialize services:', contextError);
+  console.error('Stack trace:', contextError.stack);
 }
 
 ipcMain.handle('get-url-summary', async (event, url) => {

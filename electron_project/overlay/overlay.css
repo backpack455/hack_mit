@@ -1,0 +1,320 @@
+/* VIPR Overlay Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    background: transparent;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.overlay-container {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    z-index: 999999;
+    pointer-events: auto;
+}
+
+/* Collapsed state - more visible indicator */
+.vipr-indicator {
+    width: 64px;
+    height: 64px;
+    background: rgba(0, 122, 255, 0.95);
+    border-radius: 32px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 12px 48px rgba(0, 122, 255, 0.4);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    animation: slideIn 0.3s ease-out, pulse 2s infinite;
+}
+
+.vipr-indicator:hover {
+    transform: scale(1.1);
+    box-shadow: 0 12px 48px rgba(0, 122, 255, 0.3);
+    background: rgba(0, 122, 255, 1);
+}
+
+.vipr-indicator:active {
+    transform: scale(0.95);
+}
+
+.indicator-icon {
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Expanded state - action panel */
+.vipr-panel {
+    min-width: 320px;
+    max-width: 360px;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 16px;
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 2px solid rgba(0, 122, 255, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    padding: 20px;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    transform-origin: bottom right;
+    animation: expandIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vipr-panel.hidden {
+    display: none;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.panel-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    color: #666;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+.actions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    font-size: 13px;
+    color: #1d1d1f;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-button:hover {
+    background: rgba(0, 122, 255, 0.1);
+    border-color: rgba(0, 122, 255, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15);
+}
+
+.action-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 122, 255, 0.1);
+}
+
+.action-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: rgba(0, 122, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    color: #007AFF;
+}
+
+.action-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.action-title {
+    font-weight: 500;
+    margin-bottom: 2px;
+    color: #1d1d1f;
+}
+
+.action-description {
+    font-size: 11px;
+    color: #666;
+    line-height: 1.3;
+}
+
+.confidence-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #34C759, #FF9500, #FF3B30);
+    border-radius: 1px 1px 0 0;
+    transition: width 0.3s ease;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .vipr-panel {
+        background: rgba(28, 28, 30, 0.95);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .panel-header h3 {
+        color: #f2f2f7;
+    }
+    
+    .panel-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .close-btn {
+        color: #8e8e93;
+    }
+    
+    .close-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #f2f2f7;
+    }
+    
+    .action-button {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #f2f2f7;
+    }
+    
+    .action-button:hover {
+        background: rgba(0, 122, 255, 0.2);
+        border-color: rgba(0, 122, 255, 0.4);
+    }
+    
+    .action-title {
+        color: #f2f2f7;
+    }
+    
+    .action-description {
+        color: #8e8e93;
+    }
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes expandIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 12px 48px rgba(0, 122, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 12px 48px rgba(0, 122, 255, 0.7);
+    }
+}
+
+.fade-out {
+    animation: fadeOut 0.2s ease-out forwards;
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+    .vipr-panel {
+        min-width: 260px;
+        max-width: 280px;
+    }
+}
+
+/* Focus styles for accessibility */
+.vipr-indicator:focus,
+.action-button:focus,
+.close-btn:focus {
+    outline: 2px solid #007AFF;
+    outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .vipr-indicator,
+    .vipr-panel,
+    .action-button,
+    .close-btn {
+        transition: none;
+        animation: none;
+    }
+}
