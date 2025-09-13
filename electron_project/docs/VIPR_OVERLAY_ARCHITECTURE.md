@@ -32,7 +32,7 @@
 - **Responsibility**: Low-latency OS-level gesture detection
 - **Key Features**:
   - Global hotkey registration (cross-platform)
-  - Trackpad gesture recognition (3-finger tap)
+  - Circle gesture recognition that conducts screenshots
   - Custom key combinations
   - Debouncing to prevent accidental triggers
 - **Performance**: <10ms response time, minimal CPU usage when idle
