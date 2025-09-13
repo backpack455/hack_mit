@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "strat": "electron .",
     "dev": "electron . --enable-logging",
     "build": "electron-builder",
     "dist": "electron-builder --publish=never"
@@ -17,12 +18,19 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^1.19.0",
+    "axios": "1.6.8",
     "canvas": "^3.2.0",
+    "cheerio": "^1.1.2",
+    "dotenv": "^17.2.2",
+    "google-auth-library": "^10.3.0",
+    "googleapis": "^159.0.0",
     "lucide": "^0.544.0",
+    "puppeteer": "^24.20.0",
     "screenshot-desktop": "^1.15.0"
   },
   "devDependencies": {
-    "electron": "^27.0.0",
+    "electron": "^30.5.1",
     "electron-builder": "^24.6.4",
     "electron-rebuild": "^3.2.9"
   },
