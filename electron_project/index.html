@@ -4,106 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
-    <title>Electron Desktop App</title>
+    <title>Gesture Screenshot</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🚀 Welcome to Your Electron App</h1>
-            <p class="subtitle">A modern desktop application built with Electron</p>
+            <h1>📸 Gesture Screenshot</h1>
+            <p class="subtitle">Capture screenshots with simple circular gestures</p>
         </header>
 
         <main>
-            <div class="info-section">
-                <h2>System Information</h2>
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h3>App Version</h3>
-                        <p id="app-version">Loading...</p>
+
+            <div class="main-controls">
+                <div class="control-panel">
+                    <div class="gesture-status-card">
+                        <div class="status-indicator">
+                            <div id="status-dot" class="status-dot"></div>
+                            <span id="gesture-status">Gesture Mode Disabled</span>
+                        </div>
+                        <button id="gesture-toggle" class="primary-btn">Enable Gestures</button>
                     </div>
-                    <div class="info-card">
-                        <h3>Platform</h3>
-                        <p id="platform">Loading...</p>
+                    
+                    <div class="quick-actions">
+                        <button id="screenshot-btn" class="secondary-btn">
+                            <span class="btn-icon">📷</span>
+                            Quick Screenshot
+                        </button>
                     </div>
-                    <div class="info-card">
-                        <h3>Node.js Version</h3>
-                        <p id="node-version">Loading...</p>
+                </div>
+                
+                <div class="instructions-card">
+                    <h3>How to Use</h3>
+                    <div class="instruction-steps">
+                        <div class="step">
+                            <span class="step-number">1</span>
+                            <p>Enable gesture mode above</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            <p>Move your cursor in circular motions anywhere</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <p>Screenshots are captured automatically</p>
+                        </div>
                     </div>
-                    <div class="info-card">
-                        <h3>Electron Version</h3>
-                        <p id="electron-version">Loading...</p>
+                    <div class="keyboard-shortcuts">
+                        <span class="shortcut"><kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>S</kbd> Quick Screenshot</span>
+                        <span class="shortcut"><kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>G</kbd> Toggle Gestures</span>
                     </div>
                 </div>
             </div>
 
-            <div class="gesture-control-section">
-                <h2>Gesture Control</h2>
-                <div class="control-group">
-                    <button id="gesture-toggle" class="gesture-btn">Enable Gesture Mode</button>
-                    <button id="screenshot-btn" class="screenshot-btn">Take Screenshot</button>
+            <div class="screenshots-section">
+                <div class="section-header">
+                    <h2>Recent Screenshots</h2>
+                    <span class="screenshot-count">0 captured</span>
                 </div>
-                <div class="status-area">
-                    <div class="status-item">
-                        <h3>Gesture Mode:</h3>
-                        <p id="gesture-status">Disabled</p>
-                    </div>
-                    <div class="status-item">
-                        <h3>Instructions:</h3>
-                        <p>Move your cursor in circular motions to capture a screenshot (no clicking required)</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="screenshot-section">
-                <h2>Recent Screenshots</h2>
                 <div id="screenshots-container" class="screenshots-grid">
-                    <p class="no-screenshots">No screenshots captured yet. Use gesture mode or click the screenshot button!</p>
-                </div>
-            </div>
-
-            <div class="interaction-section">
-                <h2>Try It Out</h2>
-                <div class="input-group">
-                    <input type="text" id="message-input" placeholder="Enter a message to send to the main process">
-                    <button id="send-button">Send Message</button>
-                </div>
-                <div class="response-area">
-                    <h3>Response from Main Process:</h3>
-                    <p id="response-text">No messages sent yet...</p>
-                </div>
-            </div>
-
-            <div class="features-section">
-                <h2>Features</h2>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <h3>🔒 Secure</h3>
-                        <p>Context isolation and disabled node integration for security</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🖱️ Gesture Control</h3>
-                        <p>Circular mouse gestures to capture screenshots automatically</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>📋 Menu Bar Access</h3>
-                        <p>Always accessible from the macOS menu bar/system tray</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>📸 Smart Screenshots</h3>
-                        <p>Instant screenshot capture with notification feedback</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>⌨️ Global Shortcuts</h3>
-                        <p>Cmd+Shift+S for screenshots, Cmd+Shift+G for gesture mode</p>
+                    <div class="empty-state">
+                        <div class="empty-icon">📸</div>
+                        <h3>No screenshots yet</h3>
+                        <p>Enable gesture mode and draw circles to capture screenshots</p>
                     </div>
                 </div>
             </div>
         </main>
-
-        <footer>
-            <p>Built with ❤️ using Electron</p>
-        </footer>
     </div>
 
     <script src="renderer.js"></script>

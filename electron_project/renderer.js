@@ -4,50 +4,16 @@ let isGestureMode = false;
 let screenshots = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Load system information when the page loads
-    await loadSystemInfo();
-    
-    // Set up event listeners
-    setupEventListeners();
-    
     // Set up gesture and screenshot functionality
     setupGestureControls();
     
     // Load initial gesture status
     await updateGestureStatus();
+    
+    // Add interactive effects
+    addInteractiveEffects();
 });
 
-async function loadSystemInfo() {
-    try {
-        // Get app version from main process
-        const appVersion = await window.electronAPI.getAppVersion();
-        document.getElementById('app-version').textContent = appVersion;
-        
-        // Get platform info
-        document.getElementById('platform').textContent = window.electronAPI.platform;
-        
-        // Get Node.js version
-        document.getElementById('node-version').textContent = window.electronAPI.versions.node;
-        
-        // Get Electron version
-        document.getElementById('electron-version').textContent = window.electronAPI.versions.electron;
-        
-    } catch (error) {
-        console.error('Error loading system info:', error);
-        document.getElementById('app-version').textContent = 'Error loading';
-        document.getElementById('platform').textContent = 'Error loading';
-        document.getElementById('node-version').textContent = 'Error loading';
-        document.getElementById('electron-version').textContent = 'Error loading';
-    }
-    
-    // Show keyboard shortcuts info
-    console.log('🎯 Gesture Screenshot App Ready!');
-    console.log('⌨️  Global Shortcuts:');
-    console.log('   • Cmd+Shift+S: Take Screenshot');
-    console.log('   • Cmd+Shift+G: Toggle Gesture Mode');
-    console.log('🖱️  Gesture: Move cursor in circular motions when gesture mode is enabled (no clicking required)');
-    console.log('📋 Access from menu bar icon in top-right corner');
-}
 
 // Setup gesture control functionality
 function setupGestureControls() {
@@ -225,28 +191,30 @@ async function updateGestureStatus() {
 function updateGestureUI() {
     const gestureToggle = document.getElementById('gesture-toggle');
     const gestureStatus = document.getElementById('gesture-status');
+    const statusDot = document.getElementById('status-dot');
     
     if (isGestureMode) {
-        gestureToggle.textContent = 'Disable Gesture Mode';
+        gestureToggle.textContent = 'Disable Gestures';
         gestureToggle.classList.add('active');
-        gestureStatus.textContent = 'Enabled - Move cursor in circles to capture!';
-        gestureStatus.style.color = '#10b981';
+        gestureStatus.textContent = 'Gesture Mode Enabled';
+        statusDot.classList.add('active');
     } else {
-        gestureToggle.textContent = 'Enable Gesture Mode';
+        gestureToggle.textContent = 'Enable Gestures';
         gestureToggle.classList.remove('active');
-        gestureStatus.textContent = 'Disabled';
-        gestureStatus.style.color = '#6b7280';
+        gestureStatus.textContent = 'Gesture Mode Disabled';
+        statusDot.classList.remove('active');
     }
 }
 
 // Add screenshot to UI
 function addScreenshotToUI(data) {
     const container = document.getElementById('screenshots-container');
-    const noScreenshots = container.querySelector('.no-screenshots');
+    const emptyState = container.querySelector('.empty-state');
+    const screenshotCount = document.querySelector('.screenshot-count');
     
-    // Remove "no screenshots" message if it exists
-    if (noScreenshots) {
-        noScreenshots.remove();
+    // Remove empty state if it exists
+    if (emptyState) {
+        emptyState.remove();
     }
     
     // Create screenshot element
@@ -277,15 +245,21 @@ function addScreenshotToUI(data) {
     container.insertBefore(screenshotDiv, container.firstChild);
     
     // Keep only last 5 screenshots in UI
-    const screenshots = container.querySelectorAll('.screenshot-item');
-    if (screenshots.length > 5) {
-        screenshots[screenshots.length - 1].remove();
+    const screenshotItems = container.querySelectorAll('.screenshot-item');
+    if (screenshotItems.length > 5) {
+        screenshotItems[screenshotItems.length - 1].remove();
     }
     
     // Store screenshot data
     screenshots.unshift(data);
     if (screenshots.length > 5) {
         screenshots.pop();
+    }
+    
+    // Update screenshot count
+    if (screenshotCount) {
+        const count = container.querySelectorAll('.screenshot-item').length;
+        screenshotCount.textContent = `${count} captured`;
     }
 }
 
@@ -404,54 +378,8 @@ function showAccessibilityAlert() {
     document.body.appendChild(alertDiv);
 }
 
-function setupEventListeners() {
-    const sendButton = document.getElementById('send-button');
-    const messageInput = document.getElementById('message-input');
-    const responseText = document.getElementById('response-text');
-    
-    // Handle send button click
-    sendButton.addEventListener('click', async () => {
-        const message = messageInput.value.trim();
-        if (!message) {
-            alert('Please enter a message first!');
-            return;
-        }
-        
-        try {
-            // Send message to main process and get response
-            const response = await window.electronAPI.showMessage(message);
-            responseText.textContent = response;
-            messageInput.value = ''; // Clear input
-        } catch (error) {
-            console.error('Error sending message:', error);
-            responseText.textContent = 'Error: Could not send message';
-        }
-    });
-    
-    // Handle Enter key in input field
-    messageInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            sendButton.click();
-        }
-    });
-    
-    // Add some interactive effects
-    addInteractiveEffects();
-}
 
 function addInteractiveEffects() {
-    // Add hover effects to cards
-    const cards = document.querySelectorAll('.info-card, .feature-card');
-    cards.forEach(card => {
-        card.addEventListener('mouseenter', () => {
-            card.style.transform = 'translateY(-2px)';
-        });
-        
-        card.addEventListener('mouseleave', () => {
-            card.style.transform = 'translateY(0)';
-        });
-    });
-    
     // Add click animation to buttons
     const buttons = document.querySelectorAll('button');
     buttons.forEach(button => {
@@ -460,6 +388,22 @@ function addInteractiveEffects() {
             setTimeout(() => {
                 button.style.transform = 'scale(1)';
             }, 100);
+        });
+    });
+    
+    // Add hover effects to cards
+    const cards = document.querySelectorAll('.gesture-status-card, .instructions-card, .screenshot-item');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            if (!card.classList.contains('screenshot-item')) {
+                card.style.transform = 'translateY(-1px)';
+            }
+        });
+        
+        card.addEventListener('mouseleave', () => {
+            if (!card.classList.contains('screenshot-item')) {
+                card.style.transform = 'translateY(0)';
+            }
         });
     });
 }
