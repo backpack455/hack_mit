@@ -1,4 +1,4 @@
-const { ipcMain, globalShortcut, screen, desktopCapturer, BrowserWindow } = require('electron');
+const { ipcMain, globalShortcut, screen, desktopCapturer, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const ScreenshotProcessingService = require('./screenshotProcessingService');
@@ -12,6 +12,8 @@ class OverlayService {
     this.gestureListener = null;
     this.dismissTimeout = null;
     this.allowClose = false;
+    this.currentPosition = 'bottom-right'; // Track current position: 'top-left', 'top-right', 'bottom-left', 'bottom-right'
+    this.registeredShortcuts = [];
     this.screenshotProcessor = new ScreenshotProcessingService();
     this.currentSessionId = null;
   }
@@ -37,12 +39,177 @@ class OverlayService {
       // Set up IPC handlers
       this.setupIPCHandlers();
       
+      // Register navigation shortcuts
+      this.registerNavigationShortcuts();
+      
+      // Create the overlay window but don't show it yet
+      await this.createOverlayWindow();
+      
       console.log('✅ Overlay service initialized successfully');
       return true;
     } catch (error) {
       console.error('❌ Failed to initialize overlay service:', error);
       return false;
     }
+  }
+
+  /**
+   * Register navigation shortcuts for moving the overlay
+   */
+  registerNavigationShortcuts() {
+    if (process.platform !== 'darwin') return; // Only for macOS
+
+    const shortcuts = [
+      { combo: 'Command+Shift+Up', handler: () => this.handlePositionTransition('up') },
+      { combo: 'Command+Shift+Right', handler: () => this.handlePositionTransition('right') },
+      { combo: 'Command+Shift+Down', handler: () => this.handlePositionTransition('down') },
+      { combo: 'Command+Shift+Left', handler: () => this.handlePositionTransition('left') }
+    ];
+
+    // Unregister any existing shortcuts first
+    this.unregisterNavigationShortcuts();
+
+    for (const { combo, handler } of shortcuts) {
+      const registered = globalShortcut.register(combo, handler);
+
+      if (registered) {
+        this.registeredShortcuts.push(combo);
+        console.log(`✅ Registered navigation shortcut: ${combo}`);
+      } else {
+        console.warn(`⚠️ Failed to register navigation shortcut: ${combo}`);
+      }
+    }
+  }
+  
+  /**
+   * Unregister all navigation shortcuts
+   */
+  unregisterNavigationShortcuts() {
+    for (const shortcut of this.registeredShortcuts) {
+      globalShortcut.unregister(shortcut);
+    }
+    this.registeredShortcuts = [];
+  }
+  
+  /**
+   * Handle position transition based on current position and direction
+   */
+  handlePositionTransition(direction) {
+    const currentPos = this.currentPosition;
+    let newPosition = null;
+
+    // Apply movement rules based on current position and direction
+    switch(direction) {
+      case 'up':
+        if (currentPos === 'bottom-left') {
+          newPosition = 'top-left';      // Bottom-left → Top-left
+        } else if (currentPos === 'bottom-right') {
+          newPosition = 'top-right';     // Bottom-right → Top-right
+        }
+        // Top positions: up does nothing
+        break;
+
+      case 'down':
+        if (currentPos === 'top-left') {
+          newPosition = 'bottom-left';   // Top-left → Bottom-left
+        } else if (currentPos === 'top-right') {
+          newPosition = 'bottom-right';  // Top-right → Bottom-right
+        }
+        // Bottom positions: down does nothing
+        break;
+
+      case 'left':
+        if (currentPos === 'top-right') {
+          newPosition = 'top-left';      // Top-right → Top-left
+        } else if (currentPos === 'bottom-right') {
+          newPosition = 'bottom-left';   // Bottom-right → Bottom-left
+        }
+        // Left positions: left does nothing
+        break;
+
+      case 'right':
+        if (currentPos === 'top-left') {
+          newPosition = 'top-right';     // Top-left → Top-right
+        } else if (currentPos === 'bottom-left') {
+          newPosition = 'bottom-right';  // Bottom-left → Bottom-right
+        }
+        // Right positions: right does nothing
+        break;
+    }
+
+    // Update position if a valid move was made
+    if (newPosition) {
+      this.moveOverlayToPosition(newPosition);
+    }
+  }
+
+  /**
+   * Move overlay to specified position
+   */
+  moveOverlayToPosition(position = 'bottom-right') {
+    if (!this.overlayWindow || this.overlayWindow.isDestroyed()) return;
+
+    this.currentPosition = position;
+    const bounds = this.calculatePosition();
+
+    // Use animated transition for smooth positioning
+    this.overlayWindow.setBounds({
+      x: bounds.x,
+      y: bounds.y,
+      width: this.overlayWindow.getBounds().width,
+      height: this.overlayWindow.getBounds().height
+    }, true);  // animate: true for smooth transition
+
+    console.log(`📍 Moved overlay to ${position} at (${bounds.x}, ${bounds.y})`);
+
+    // Notify renderer of position change
+    if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+      this.overlayWindow.webContents.send('position-changed', { position });
+    }
+  }
+  
+  /**
+   * Calculate window position based on current position setting
+   */
+  calculatePosition() {
+    const cursorPoint = screen.getCursorScreenPoint();
+    const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
+    const { x: screenX, y: screenY, width, height } = activeDisplay.workArea;
+
+    const windowWidth = 720;  // Double the width
+    const windowHeight = 520;  // Double the height
+    const margin = 20;
+
+    // Ensure window doesn't exceed screen boundaries
+    const maxX = screenX + width - windowWidth - margin;
+    const maxY = screenY + height - windowHeight - margin;
+    const minX = screenX + margin;
+    const minY = screenY + margin;
+
+    let position;
+    switch (this.currentPosition) {
+      case 'top-left':
+        position = { x: Math.max(minX, screenX + margin), y: Math.max(minY, screenY + margin) };
+        break;
+      case 'top-right':
+        position = { x: Math.min(maxX, screenX + width - windowWidth - margin), y: Math.max(minY, screenY + margin) };
+        break;
+      case 'bottom-left':
+        position = { x: Math.max(minX, screenX + margin), y: Math.min(maxY, screenY + height - windowHeight - margin) };
+        break;
+      case 'bottom-right':
+      default:
+        position = {
+          x: Math.min(maxX, screenX + width - windowWidth - margin),
+          y: Math.min(maxY, screenY + height - windowHeight - margin)
+        };
+    }
+
+    // Final boundary check to prevent overlay from going off-screen
+    position.x = Math.max(screenX, Math.min(position.x, screenX + width - windowWidth));
+    position.y = Math.max(screenY, Math.min(position.y, screenY + height - windowHeight));
+
+    return position;
   }
 
   /**
@@ -372,77 +539,132 @@ class OverlayService {
   }
 
   /**
+   * Create the overlay window (without showing it)
+   */
+  async createOverlayWindow() {
+    if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+      return this.overlayWindow;
+    }
+    
+    console.log('🎨 Creating overlay window...');
+    
+    // Calculate initial position
+    const position = this.calculatePosition();
+    
+    // Create overlay window with alwaysOnTop and other required flags
+    this.overlayWindow = new BrowserWindow({
+      width: 720,  // Double the width
+      height: 520, // Double the height
+      x: position.x,
+      y: position.y,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      movable: false,
+      focusable: false,
+      show: false,
+      type: 'panel',
+      level: 'screen-saver',
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+        enableRemoteModule: true,
+        backgroundThrottling: false // Ensure smooth animations even when in background
+      },
+      titleBarStyle: 'customButtonsOnHover',
+      fullscreenable: false,
+      hasShadow: false,
+      acceptFirstMouse: true,
+      hiddenInMissionControl: true,
+      visibleOnAllWorkspaces: true,
+      roundedCorners: false
+    });
+    
+    // Prevent window from being closed accidentally
+    this.overlayWindow.on('close', (event) => {
+      // Only allow programmatic closing
+      if (!this.allowClose) {
+        event.preventDefault();
+      }
+    });
+    
+    // Make sure window stays on top of fullscreen windows
+    this.overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    
+    // Load the overlay HTML
+    console.log('🔗 Loading overlay HTML...');
+    await this.overlayWindow.loadFile(path.join(__dirname, '../overlay/overlay.html'));
+    
+    // Set up IPC communication
+    this.setupOverlayIPC();
+    
+    console.log('✅ Overlay window created (hidden)');
+    return this.overlayWindow;
+  }
+  
+  /**
+   * Set up IPC communication with the overlay window
+   */
+  setupOverlayIPC() {
+    if (!this.overlayWindow) return;
+    
+    // Handle position changes from renderer
+    ipcMain.on('request-position', (event) => {
+      event.returnValue = this.currentPosition;
+    });
+
+    // Handle move overlay to position requests from renderer
+    ipcMain.on('move-overlay-to-position', (event, position) => {
+      this.moveOverlayToPosition(position);
+    });
+
+    // Handle close requests (only allowed from menu bar)
+    ipcMain.on('request-close', (event) => {
+      if (this.allowClose) {
+        this.hideOverlay();
+      }
+    });
+  }
+
+  /**
    * Show overlay window with actions
    */
   async showOverlay(actions) {
-    if (this.isOverlayVisible) {
-      console.log('🔄 Updating existing overlay with new actions...');
-      // Update existing overlay with new actions
-      if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
-        this.overlayWindow.webContents.send('show-actions', actions);
-        console.log('✅ Overlay updated with new actions:', actions.map(a => a.title));
-      }
-      return;
-    }
-
     try {
-      console.log('🎨 Creating overlay window...');
-      
-      // Get optimal position (bottom-right corner)
-      const position = this.getOptimalPosition();
-      console.log('📍 Overlay position:', position);
-      
-      // Create overlay window
-      this.overlayWindow = new BrowserWindow({
-        width: 360,
-        height: 260,
-        x: position.x,
-        y: position.y,
-        frame: false,
-        transparent: true,
-        alwaysOnTop: true,
-        skipTaskbar: true,
-        resizable: false,
-        movable: false,
-        focusable: false, // Changed back to false to prevent focus stealing
-        show: false,
-        type: 'panel',
-        level: 'screen-saver',
-        webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false,
-          enableRemoteModule: true
+      // Hide main window when overlay is shown
+      const { app } = require('electron');
+      const mainWindow = require('electron').BrowserWindow.getAllWindows().find(win => !win.isDestroyed() && win.webContents.getURL().includes('index.html'));
+      if (mainWindow && mainWindow.isVisible()) {
+        mainWindow.hide();
+        // Hide dock icon on macOS
+        if (process.platform === 'darwin') {
+          app.dock.hide();
         }
-      });
+      }
 
-      // Prevent window from being closed accidentally
-      this.overlayWindow.on('close', (event) => {
-        // Only allow programmatic closing
-        if (!this.allowClose) {
-          event.preventDefault();
-        }
-      });
-
-      console.log('🔗 Loading overlay HTML...');
-      // Load overlay HTML
-      await this.overlayWindow.loadFile(path.join(__dirname, '../overlay/overlay.html'));
+      // Ensure overlay window exists
+      if (!this.overlayWindow || this.overlayWindow.isDestroyed()) {
+        await this.createOverlayWindow();
+      }
       
-      // Show the window after loading
-      this.overlayWindow.show();
-      console.log('👁️ Overlay window shown');
+      // Show the window if hidden
+      if (!this.overlayWindow.isVisible()) {
+        this.overlayWindow.showInactive(); // Show without stealing focus
+        console.log('👁️ Overlay window shown');
+      }
       
-      // Send actions to overlay after a brief delay
-      setTimeout(() => {
-        if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
-          console.log('📤 Sending actions to overlay...');
-          this.overlayWindow.webContents.send('show-actions', actions);
-        }
-      }, 100);
+      // Update actions
+      if (actions && actions.length > 0) {
+        console.log('📤 Sending actions to overlay...');
+        this.overlayWindow.webContents.send('show-actions', actions);
+      }
       
       this.isOverlayVisible = true;
       
       // No auto-dismiss timeout - overlay stays until manually toggled
-      console.log('✅ Overlay displayed with actions (sticky mode):', actions.map(a => a.title));
+      console.log('✅ Overlay displayed with actions (sticky mode)');
       
     } catch (error) {
       console.error('❌ Failed to show overlay:', error);
@@ -452,17 +674,11 @@ class OverlayService {
 
   /**
    * Get optimal position for overlay (bottom-right corner of active screen)
+   * @deprecated Use calculatePosition() instead
    */
   getOptimalPosition() {
-    // Get the display where the cursor is currently located
-    const cursorPoint = screen.getCursorScreenPoint();
-    const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
-    const { x: screenX, y: screenY, width, height } = activeDisplay.workArea;
-    
-    return {
-      x: screenX + width - 380, // 360px width + 20px margin
-      y: screenY + height - 280  // 260px height + 20px margin
-    };
+    const pos = this.calculatePosition();
+    return { x: pos.x, y: pos.y };
   }
 
   /**
@@ -492,9 +708,11 @@ class OverlayService {
   hideOverlay() {
     if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
       this.allowClose = true; // Allow the window to close
-      this.overlayWindow.close();
-      this.overlayWindow = null;
+      this.overlayWindow.hide(); // Hide instead of close to preserve state
       this.allowClose = false; // Reset flag
+      
+      // Notify renderer that overlay was hidden
+      this.overlayWindow.webContents.send('overlay-hidden');
     }
     
     this.isOverlayVisible = false;
@@ -656,6 +874,7 @@ class OverlayService {
   /**
    * Get sessions formatted for Session History page
    */
+
   getSessionsForHistory() {
     const sessions = [];
     
@@ -737,6 +956,23 @@ class OverlayService {
   async cleanup() {
     try {
       // Cleanup screenshot processor and session data
+      this.unregisterNavigationShortcuts();
+      
+      globalShortcut.unregisterAll();
+
+      // Close overlay window if it exists
+      if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+        this.allowClose = true;
+        this.overlayWindow.close();
+      }
+    
+    // Clear any pending timeouts
+      if (this.dismissTimeout) {
+        clearTimeout(this.dismissTimeout);
+      }
+    
+      console.log('🧹 Cleaned up overlay service');
+      
       if (this.screenshotProcessor) {
         await this.screenshotProcessor.cleanupAll();
       }
@@ -746,11 +982,6 @@ class OverlayService {
       
       // Hide overlay
       this.hideOverlay();
-      
-      // Clear timeouts
-      if (this.dismissTimeout) {
-        clearTimeout(this.dismissTimeout);
-      }
       
       console.log('🧹 Overlay service cleaned up');
     } catch (error) {

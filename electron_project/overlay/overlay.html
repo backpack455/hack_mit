@@ -3,23 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline';">
     <title>VIPR Overlay</title>
     <link rel="stylesheet" href="overlay.css">
 </head>
 <body>
-    <div class="overlay-container">
-        <!-- Collapsed state - Clean Eye indicator -->
-        <div class="vipr-indicator" id="vipr-indicator">
+    <div class="overlay-container position-bottom-right">
+        <!-- Collapsed state - VIPR Eye Indicator -->
+        <div id="vipr-indicator" class="vipr-indicator" role="button" aria-label="Open VIPR actions" tabindex="0">
             <div class="indicator-icon"></div>
+            <div class="indicator-tooltip">VIPR Actions (Click or press Cmd+Shift+O)</div>
         </div>
-        
-        <!-- Expanded state - Enhanced Action panel -->
-        <div class="vipr-panel hidden" id="vipr-panel">
+
+        <!-- Expanded state - VIPR Action Panel -->
+        <div id="vipr-panel" class="vipr-panel hidden">
             <div class="panel-header">
-                <h3 class="panel-title">VIPR Actions</h3>
-                <button class="close-btn" id="close-btn">×</button>
+                <div class="header-content">
+                    <h3 class="panel-title">VIPR Actions</h3>
+                    <div class="keyboard-hint">
+                        <kbd>⌘</kbd><kbd>⇧</kbd> + <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> to move
+                    </div>
+                </div>
+                <button id="close-btn" class="close-btn" aria-label="Close panel">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
-            
             <!-- Screenshot Gallery -->
             <div class="screenshot-gallery" id="screenshot-gallery">
                 <div class="gallery-header">
@@ -33,19 +44,16 @@
             
             <div class="actions-container" id="actions-container">
                 <!-- Actions will be populated by JavaScript -->
-            </div>
-            
-            <!-- Task Sequence Display -->
-            <div class="task-sequence" id="task-sequence">
-                <!-- Task Status Bar -->
-                <div class="task-status-bar" id="task-status-bar">
-                    <div class="status-indicator" id="status-indicator"></div>
-                    <span class="status-text" id="status-text">Running</span>
-                    <span class="current-step" id="current-step">Step 1 of 5</span>
+                <div class="empty-state">
+                    <div class="empty-icon">👁️</div>
+                    <p>No actions available</p>
+                    <p class="small">Use Cmd+Shift+O to toggle the overlay</p>
                 </div>
-                
-                <div class="sequence-header">
-                    <h4 class="sequence-title" id="sequence-title">Processing...</h4>
+            </div>
+            <div class="panel-footer">
+                <div class="position-indicator">
+                    <span class="position-label">Position: </span>
+                    <span id="position-display" class="position-value">Bottom Right</span>
                     <span class="sequence-progress" id="sequence-progress">0/0</span>
                 </div>
                 
@@ -59,14 +67,18 @@
                 
                 <!-- Task Controls -->
                 <div class="task-controls" id="task-controls">
-                    <button class="control-btn suspend" id="suspend-btn">
-                        <span>⏸️</span> Suspend
-                    </button>
                     <button class="control-btn cancel" id="cancel-btn">
-                        <span>❌</span> Cancel
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Cancel
                     </button>
                     <button class="control-btn" id="close-task-btn">
-                        <span>✅</span> Close
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20,6 9,17 4,12"></polyline>
+                        </svg>
+                        Close
                     </button>
                 </div>
             </div>
