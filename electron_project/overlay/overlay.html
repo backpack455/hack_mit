@@ -9,10 +9,16 @@
 </head>
 <body>
     <div class="overlay-container position-bottom-right">
-        <!-- Collapsed state - VIPR Eye Indicator -->
-        <div id="vipr-indicator" class="vipr-indicator" role="button" aria-label="Open VIPR actions" tabindex="0">
-            <div class="indicator-icon"></div>
-            <div class="indicator-tooltip">VIPR Actions (Click or press Cmd+Shift+O)</div>
+        <!-- Collapsed state - VIPR Eye Indicator with dedicated click area -->
+        <div id="vipr-indicator-wrapper" style="position: relative; z-index: 999999;">
+            <!-- Invisible overlay for more reliable click handling -->
+            <div id="eye-click-overlay" style="position: absolute; top: -10px; left: -10px; width: 92px; height: 62px; z-index: 1000000; cursor: pointer;" aria-hidden="true"></div>
+            
+            <!-- Visual eye indicator -->
+            <div id="vipr-indicator" class="vipr-indicator" role="button" aria-label="Open VIPR actions" tabindex="0">
+                <div class="indicator-icon"></div>
+                <div class="indicator-tooltip">VIPR Actions (Click or press Cmd+Shift+O)</div>
+            </div>
         </div>
 
         <!-- Expanded state - VIPR Action Panel -->
@@ -31,32 +37,43 @@
                     </svg>
                 </button>
             </div>
-            <!-- Screenshot Gallery -->
-            <div class="screenshot-gallery" id="screenshot-gallery">
-                <div class="gallery-header">
-                    <h4 class="gallery-title">Recent Screenshots</h4>
-                    <span class="screenshot-count" id="screenshot-count">0 screenshots</span>
-                </div>
-                <div class="screenshot-scroll" id="screenshot-scroll">
-                    <!-- Screenshots will be populated by JavaScript -->
-                </div>
-            </div>
-            
-            <div class="actions-container" id="actions-container">
-                <!-- Loading state -->
-                <div class="loading-state" id="loading-state">
-                    <div class="loading-spinner">
-                        <div class="spinner-ring"></div>
+            <!-- Scrollable Panel Body (screenshots + actions) -->
+            <div class="panel-body" id="panel-body">
+                <!-- Screenshot Gallery -->
+                <div class="screenshot-gallery" id="screenshot-gallery">
+                    <div class="gallery-header">
+                        <h4 class="gallery-title">Recent Screenshots</h4>
+                        <span class="screenshot-count" id="screenshot-count">0 screenshots</span>
                     </div>
-                    <div class="loading-text">Analyzing context...</div>
-                    <div class="loading-subtext">Generating smart recommendations</div>
+                    <div class="screenshot-scroll" id="screenshot-scroll">
+                        <!-- Screenshots will be populated by JavaScript -->
+                    </div>
                 </div>
                 
-                <!-- Actions will be dynamically inserted here -->
-                <div class="empty-state">
-                    <div class="empty-icon">👁️</div>
-                    <p>No actions available</p>
-                    <p class="small">Use Cmd+Shift+O to toggle the overlay</p>
+                <div class="actions-container" id="actions-container">
+                    <!-- Loading state -->
+                    <div class="loading-state" id="loading-state">
+                        <div class="loading-spinner">
+                            <div class="spinner-ring"></div>
+                        </div>
+                        <div class="loading-text">Analyzing context...</div>
+                        <div class="loading-subtext">Generating smart recommendations</div>
+                    </div>
+                    
+                    <!-- Agentic Task Sequence -->
+                    <div class="task-sequence" id="task-sequence">
+                        <div class="sequence-header">
+                            <h4 class="sequence-title" id="sequence-title">Running Agentic Task</h4>
+                            <span class="sequence-progress" id="sequence-progress">0/0</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions will be dynamically inserted here -->
+                    <div class="empty-state">
+                        <div class="empty-icon">👁️</div>
+                        <p>No actions available</p>
+                        <p class="small">Use Cmd+Shift+O to toggle the overlay</p>
+                    </div>
                 </div>
             </div>
             <div class="panel-footer">
@@ -72,6 +89,13 @@
                 
                 <div class="task-output" id="task-output">
                     <div>Ready to execute...</div>
+                </div>
+                
+                <!-- Task Status Bar -->
+                <div class="task-status-bar" id="task-status-bar">
+                    <div class="status-indicator" id="status-indicator"></div>
+                    <span class="status-text" id="status-text">Ready</span>
+                    <span class="current-step" id="current-step"></span>
                 </div>
                 
                 <!-- Task Controls -->

@@ -12,11 +12,16 @@ class OverlayUI {
         this.hoverTimeout = null;
         this.actions = [];
         this.isDragging = false;
+        this.mouseDownOnEye = false; // Track if mouse down happened on eye
+        this.mouseDownTime = 0; // Track when mouse down occurred
+        this.mouseDownPos = { x: 0, y: 0 }; // Track where mouse down occurred
         this.dragStartX = 0;
         this.dragStartLeft = 0;
         this.currentPosition = 'bottom-right';
         this.isVisible = true;
         this.isProcessing = false; // Track if we're processing gestures/screenshots
+        this.taskRunning = false; // Track if an automation task is running
+        this.clickHandled = false; // Track if a click was already handled
 
         this.init();
         this.setupKeyboardListeners();
@@ -25,6 +30,8 @@ class OverlayUI {
     init() {
         // Get DOM elements
         this.indicator = document.getElementById('vipr-indicator');
+        this.indicatorWrapper = document.getElementById('vipr-indicator-wrapper');
+        this.eyeClickOverlay = document.getElementById('eye-click-overlay');
         this.panel = document.getElementById('vipr-panel');
         this.actionsContainer = document.getElementById('actions-container');
         this.closeBtn = document.getElementById('close-btn');
@@ -36,6 +43,7 @@ class OverlayUI {
         this.indicator.style.visibility = 'visible';
         this.indicator.style.zIndex = '999999';
         this.indicator.style.position = 'relative';
+        this.indicator.style.pointerEvents = 'auto'; // Ensure it's always clickable
         
         // Set initial position class
         this.updatePositionClass();
@@ -194,8 +202,70 @@ class OverlayUI {
             return false;
         });
         
-        // Toggle panel on indicator click (handled in mouseup for drag compatibility)
-
+        // Improved direct click handler for eye indicator with immediate response
+        const handleEyeClick = (e) => {
+            // Always handle the click regardless of any state
+            console.log('Eye indicator clicked directly');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Force toggle panel regardless of background state
+            this.togglePanel();
+            
+            // Force eye to be visible and interactive
+            this.indicator.style.display = 'flex';
+            this.indicator.style.opacity = '1';
+            this.indicator.style.visibility = 'visible';
+            this.indicator.style.pointerEvents = 'auto';
+            
+            // Return false to prevent any other handlers
+            return false;
+        };
+        
+        // Add click handler to the dedicated overlay element (higher priority)
+        if (this.eyeClickOverlay) {
+            console.log('Setting up eye click overlay handler');
+            this.eyeClickOverlay.onclick = handleEyeClick;
+            this.eyeClickOverlay.addEventListener('touchend', handleEyeClick, { passive: false });
+        }
+        
+        // Also add to the eye indicator as backup with different strategies
+        this.indicator.onclick = handleEyeClick; // Direct onclick property
+        this.indicator.addEventListener('click', handleEyeClick); // Standard event listener
+        
+        // Add touch support
+        this.indicator.addEventListener('touchend', (e) => {
+            console.log('Touch end on eye');
+            if (!this.isDragging) {
+                e.preventDefault();
+                handleEyeClick(e);
+            }
+        }, { passive: false });
+        
+        // Track mousedown state to differentiate clicks from drags
+        this.indicator.addEventListener('mousedown', (e) => {
+            // Set a flag to track if this is a click or drag start
+            this.mouseDownOnEye = true;
+            this.mouseDownTime = Date.now();
+            this.mouseDownPos = { x: e.clientX, y: e.clientY };
+        });
+        
+        this.indicator.addEventListener('mouseup', (e) => {
+            // If mouse down was on eye and it wasn't a drag, treat as click
+            if (this.mouseDownOnEye && !this.isDragging) {
+                const timeDiff = Date.now() - this.mouseDownTime;
+                const xDiff = Math.abs(e.clientX - this.mouseDownPos.x);
+                const yDiff = Math.abs(e.clientY - this.mouseDownPos.y);
+                
+                // If it was a short press with minimal movement, it's a click
+                if (timeDiff < 300 && xDiff < 5 && yDiff < 5) {
+                    console.log('Mouseup detected as click');
+                    handleEyeClick(e);
+                }
+                this.mouseDownOnEye = false;
+            }
+        });
+        
         // Panel hover events
         this.panel.addEventListener('mouseenter', () => {
             clearTimeout(this.hoverTimeout);
@@ -232,27 +302,21 @@ class OverlayUI {
 
         // Click outside to dismiss - but only on the actual overlay elements
         document.addEventListener('click', (e) => {
-            // Don't dismiss if currently processing
-            if (this.isProcessing) {
-                return;
-            }
-
-            // Don't dismiss if loading state is visible
-            const loadingState = document.getElementById('loading-state');
-            if (loadingState && loadingState.style.display !== 'none') {
-                return;
-            }
-
-            // Only dismiss if clicking outside both the panel AND indicator
-            // AND not clicking on the transparent overlay container itself
+            // We'll still allow the panel to collapse when clicking outside,
+            // but we'll always keep the eye indicator visible and clickable
+            
+            // Only check if we should collapse (not dismiss) when clicking outside
             const clickedOnOverlay = this.overlayContainer.contains(e.target);
             const clickedOnIndicator = this.indicator.contains(e.target);
             const clickedOnPanel = this.panel.contains(e.target);
 
-            // Only dismiss if we clicked somewhere that's not the indicator or panel
-            // but don't dismiss on transparent areas of the overlay container
+            // If clicked outside of our UI elements, collapse the panel but keep eye visible
             if (!clickedOnIndicator && !clickedOnPanel && !clickedOnOverlay) {
-                this.dismissOverlay();
+                // Just collapse the panel rather than fully dismissing
+                // This ensures the eye stays visible and interactive
+                if (this.isExpanded) {
+                    this.collapsePanel();
+                }
             }
         });
     }
@@ -260,10 +324,14 @@ class OverlayUI {
     setupDragFunctionality() {
         let startX, startY, startLeft, startTop;
 
-        // Mouse events for dragging
+        // Mouse events for dragging - completely separated from click handling
         this.indicator.addEventListener('mousedown', (e) => {
-            if (this.isExpanded) return; // Don't drag when expanded
-
+            // Don't set up drag if panel is expanded
+            if (this.isExpanded) return;
+            
+            // Reset click handled flag
+            this.clickHandled = false;
+            
             // Add a small delay to distinguish between click and drag
             this.dragStartTime = Date.now();
             this.dragStarted = false;
@@ -275,9 +343,8 @@ class OverlayUI {
             const rect = this.overlayContainer.getBoundingClientRect();
             startLeft = rect.left;
             startTop = rect.top;
-
-            e.preventDefault();
-            e.stopPropagation();
+            
+            // Don't prevent default or stop propagation here to allow click events
         });
 
         document.addEventListener('mousemove', (e) => {
@@ -287,11 +354,15 @@ class OverlayUI {
                 const deltaY = Math.abs(e.clientY - startY);
                 const timeElapsed = Date.now() - this.dragStartTime;
 
-                // Require both mouse movement and time threshold to start drag
-                if ((deltaX > 5 || deltaY > 5) && timeElapsed > 100) {
+                // Require significantly more movement before starting drag
+                // This helps prevent accidentally triggering drag on click
+                if ((deltaX > 15 || deltaY > 15) && timeElapsed > 150) {
                     this.isDragging = true;
                     this.dragStarted = true;
                     this.overlayContainer.classList.add('dragging');
+                    
+                    // Set this flag to prevent click after drag
+                    this.clickHandled = true;
                 }
                 return;
             }
@@ -323,7 +394,7 @@ class OverlayUI {
             e.preventDefault();
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', (e) => {
             // Check if this was a drag or just a click
             const wasDragging = this.isDragging;
             const timeElapsed = this.dragStartTime ? Date.now() - this.dragStartTime : 0;
@@ -337,10 +408,10 @@ class OverlayUI {
             if (wasDragging) {
                 // Optional: Snap to nearest corner after drag
                 this.snapToNearestCorner();
-            } else if (timeElapsed < 300) {
-                // This was a quick click, toggle the panel
-                this.togglePanel();
+                // Set flag to prevent toggling panel after drag
+                this.clickHandled = true;
             }
+            // We handle clicks in dedicated click handlers now, not here
         });
 
         // Touch events for mobile support
@@ -433,14 +504,25 @@ class OverlayUI {
     }
 
     setupIPCListeners() {
-        // Eye icon is always visible - removed hide functionality
+        // Eye icon is always visible and interactive
         ipcRenderer.on('show-eye-icon', () => {
             this.indicator.style.display = 'flex';
             this.indicator.style.opacity = '1';
             this.indicator.style.visibility = 'visible';
+            this.indicator.style.pointerEvents = 'auto';
+            this.indicator.style.zIndex = '999999';
         });
         
-        // Removed hide-eye-icon handler - eye stays visible always
+        // Handle any attempt to hide the eye - override to keep it visible
+        ipcRenderer.on('hide-eye-icon', () => {
+            // Override to keep eye always visible and clickable
+            console.log('Attempt to hide eye icon overridden - keeping eye visible and interactive');
+            this.indicator.style.display = 'flex';
+            this.indicator.style.opacity = '1';
+            this.indicator.style.visibility = 'visible';
+            this.indicator.style.pointerEvents = 'auto';
+            this.indicator.style.zIndex = '999999';
+        });
         
         // Listen for actions from main process
         ipcRenderer.on('show-actions', (_, actions) => {
@@ -889,6 +971,12 @@ class OverlayUI {
     showAgenticTaskSequence(actionId) {
         console.log(`📋 Showing agentic task sequence for: ${actionId}`);
         
+        // First, clear any previous results summary
+        const existingResults = document.querySelector('.results-summary');
+        if (existingResults) {
+            existingResults.remove();
+        }
+        
         const taskSequence = document.getElementById('task-sequence');
         const sequenceTitle = document.getElementById('sequence-title');
         const sequenceProgress = document.getElementById('sequence-progress');
@@ -897,11 +985,15 @@ class OverlayUI {
         const statusText = document.getElementById('status-text');
         const statusIndicator = document.getElementById('status-indicator');
         const currentStep = document.getElementById('current-step');
+        const taskControls = document.getElementById('task-controls');
         
         if (!taskSequence) {
             console.error('❌ Task sequence element not found');
             return;
         }
+        
+        // Set task running state to prevent overlay from closing
+        this.taskRunning = true;
         
         // Initialize agentic task state
         this.currentTaskState = {
@@ -925,29 +1017,58 @@ class OverlayUI {
         ];
         
         // Set title and show sequence
-        sequenceTitle.textContent = 'Running Agentic Task';
-        sequenceProgress.textContent = `0/${agenticTasks.length}`;
+        if (sequenceTitle) sequenceTitle.textContent = 'Running Agentic Task';
+        if (sequenceProgress) sequenceProgress.textContent = `0/${agenticTasks.length}`;
+        taskSequence.style.display = 'block';
         taskSequence.classList.add('active');
         
+        // Make sure task list and output are visible
+        if (taskList) taskList.style.display = 'block';
+        if (taskOutput) taskOutput.style.display = 'block';
+        if (taskControls) taskControls.classList.add('active');
+        
+        // Hide screenshots and actions while task is running
+        if (this.screenshotGallery) this.screenshotGallery.style.display = 'none';
+        if (this.actionsContainer.querySelector('.action-buttons-container')) {
+            this.actionsContainer.querySelector('.action-buttons-container').style.display = 'none';
+        }
+        
+        // Hide any action buttons directly in actions-container
+        const actionButtons = this.actionsContainer.querySelectorAll('.action-button');
+        actionButtons.forEach(btn => btn.style.display = 'none');
+        
+        // Hide the empty state and loading state
+        const emptyState = this.actionsContainer.querySelector('.empty-state');
+        if (emptyState) emptyState.style.display = 'none';
+        this.hideLoadingState();
+        
+        // Ensure the panel stays expanded
+        this.expandPanel();
+        
         // Clear and populate task list
-        taskList.innerHTML = '';
-        agenticTasks.forEach((task, index) => {
-            const taskItem = document.createElement('li');
-            taskItem.className = 'task-item';
-            taskItem.innerHTML = `
-                <div class="task-status"></div>
-                <span class="task-text">${task}</span>
-            `;
-            taskList.appendChild(taskItem);
-        });
+        if (taskList) {
+            taskList.innerHTML = '';
+            agenticTasks.forEach((task, index) => {
+                const taskItem = document.createElement('li');
+                taskItem.className = 'task-item';
+                taskItem.innerHTML = `
+                    <div class="task-status"></div>
+                    <span class="task-text">${task}</span>
+                `;
+                taskList.appendChild(taskItem);
+            });
+        }
         
         // Update status bar
-        statusText.textContent = 'Running';
-        statusIndicator.className = 'status-indicator';
-        currentStep.textContent = `Step 1 of ${agenticTasks.length}`;
+        if (statusText) statusText.textContent = 'Running';
+        if (statusIndicator) statusIndicator.className = 'status-indicator';
+        if (currentStep) currentStep.textContent = `Step 1 of ${agenticTasks.length}`;
         
         // Clear output
-        taskOutput.innerHTML = '<div>🚀 Initializing agentic pipeline...</div>';
+        if (taskOutput) taskOutput.innerHTML = '<div>🚀 Initializing agentic pipeline...</div>';
+        
+        // Scroll to make task progress visible
+        this.scrollToTaskList();
         
         // Simulate task execution progress
         this.simulateAgenticExecution(agenticTasks, taskOutput, sequenceProgress);
@@ -957,41 +1078,108 @@ class OverlayUI {
         console.log(`📊 Displaying agentic result for: ${actionId}`);
         
         const taskOutput = document.getElementById('task-output');
+        const taskList = document.getElementById('task-list');
         const statusText = document.getElementById('status-text');
         const statusIndicator = document.getElementById('status-indicator');
-        const suspendBtn = document.getElementById('suspend-btn');
         const cancelBtn = document.getElementById('cancel-btn');
         const closeTaskBtn = document.getElementById('close-task-btn');
+        const taskSequence = document.getElementById('task-sequence');
         
         if (!taskOutput) return;
         
         // Update status to completed
         this.currentTaskState.status = 'completed';
-        statusText.textContent = 'Completed';
-        statusIndicator.className = 'status-indicator completed';
-        suspendBtn.disabled = true;
-        cancelBtn.disabled = true;
-        closeTaskBtn.style.display = 'block';
+        if (statusText) statusText.textContent = 'Completed';
+        if (statusIndicator) statusIndicator.className = 'status-indicator completed';
+        
+        // Update button states
+        if (cancelBtn) cancelBtn.disabled = true;
+        if (closeTaskBtn) closeTaskBtn.style.display = 'block';
         
         // Format and display the result
         const formattedResult = this.formatAgenticResult(result);
         
-        const resultDiv = document.createElement('div');
-        resultDiv.className = 'agentic-result';
-        resultDiv.innerHTML = `
-            <div class="result-header">
-                <strong>✅ Task completed successfully!</strong>
-            </div>
-            <div class="result-content">
-                ${formattedResult.html}
-            </div>
-        `;
+        // Hide task list since we're showing results now
+        if (taskList) {
+            taskList.style.opacity = '0';
+            setTimeout(() => {
+                taskList.style.display = 'none';
+            }, 300);
+        }
         
-        taskOutput.appendChild(resultDiv);
-        taskOutput.scrollTop = taskOutput.scrollHeight;
+        // Replace task output with results
+        taskOutput.style.opacity = '0';
+        setTimeout(() => {
+            taskOutput.innerHTML = '';
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'agentic-result';
+            
+            // Add a header for the results
+            resultDiv.innerHTML = `
+                <h4 class="results-title">Task Results</h4>
+                <div class="results-content">${formattedResult.html}</div>
+            `;
+            
+            taskOutput.appendChild(resultDiv);
+            
+            // Add the results-ready class to highlight the task sequence
+            if (taskSequence) {
+                taskSequence.classList.add('results-ready');
+                taskSequence.classList.add('showing-results');
+            }
+            
+            // Ensure results are visible and properly displayed
+            taskOutput.style.display = 'block';
+            taskOutput.classList.add('showing-results');
+            
+            // Fade the result back in
+            setTimeout(() => {
+                taskOutput.style.opacity = '1';
+                // Auto-scroll after content is loaded and visible
+                taskOutput.scrollTop = 0;
+            }, 50);
+        }, 300);
         
-        // Expand the overlay if needed to show results
+        // Make sure the overlay is expanded and scrolled to show results
         this.expandForResults();
+        
+        // Show copy button in task controls
+        const copyResultBtn = document.getElementById('copy-result-btn');
+        if (copyResultBtn) {
+            // Update existing button
+            copyResultBtn.style.display = 'flex';
+            copyResultBtn.disabled = false;
+            
+            // Add copy functionality
+            copyResultBtn.addEventListener('click', () => {
+                let textContent = '';
+                
+                if (result.content) {
+                    if (typeof result.content === 'string') {
+                        textContent = result.content;
+                    } else {
+                        try {
+                            textContent = JSON.stringify(result.content, null, 2);
+                        } catch (e) {
+                            textContent = 'Unable to copy result content';
+                        }
+                    }
+                }
+                
+                navigator.clipboard.writeText(textContent).then(() => {
+                    copyResultBtn.innerText = "Copied!";
+                    setTimeout(() => {
+                        copyResultBtn.innerHTML = `
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Result
+                        `;
+                    }, 2000);
+                });
+            });
+        }
     }
     
     displayAgenticError(actionId, result) {
@@ -1000,7 +1188,6 @@ class OverlayUI {
         const taskOutput = document.getElementById('task-output');
         const statusText = document.getElementById('status-text');
         const statusIndicator = document.getElementById('status-indicator');
-        const suspendBtn = document.getElementById('suspend-btn');
         const cancelBtn = document.getElementById('cancel-btn');
         const closeTaskBtn = document.getElementById('close-task-btn');
         
@@ -1008,25 +1195,26 @@ class OverlayUI {
         
         // Update status to failed
         this.currentTaskState.status = 'failed';
-        statusText.textContent = 'Failed';
-        statusIndicator.className = 'status-indicator cancelled';
-        suspendBtn.disabled = true;
-        cancelBtn.disabled = true;
-        closeTaskBtn.style.display = 'block';
+        if (statusText) statusText.textContent = 'Failed';
+        if (statusIndicator) statusIndicator.className = 'status-indicator cancelled';
         
+        // Update button states
+        if (cancelBtn) cancelBtn.disabled = true;
+        if (closeTaskBtn) closeTaskBtn.style.display = 'block';
+        
+        // Clear output and show error with simple formatting
+        taskOutput.innerHTML = '';
         const errorDiv = document.createElement('div');
         errorDiv.className = 'agentic-error';
         errorDiv.innerHTML = `
-            <div class="error-header">
-                <strong>❌ Task failed</strong>
-            </div>
-            <div class="error-content">
-                ${result.content || 'Unknown error occurred'}
-            </div>
+            <strong>Error:</strong> ${result.content || 'Unknown error occurred'}
         `;
         
         taskOutput.appendChild(errorDiv);
         taskOutput.scrollTop = taskOutput.scrollHeight;
+        
+        // Keep task UI visible and scroll to it
+        this.scrollToTaskList();
     }
     
     formatAgenticResult(result) {
@@ -1034,21 +1222,225 @@ class OverlayUI {
             return { html: 'No result content available' };
         }
         
-        let html = result.content;
+        let html = '';
+        let content = result.content;
         
         // If it's already HTML, use it directly
-        if (html.includes('<') && html.includes('>')) {
-            return { html };
+        if (typeof content === 'string' && content.includes('<') && content.includes('>')) {
+            return { html: content };
         }
         
-        // Convert plain text to HTML with basic formatting
+        // Try to parse JSON if it's a string representation of JSON
+        if (typeof content === 'string') {
+            try {
+                // See if it's JSON string
+                if ((content.trim().startsWith('{') && content.trim().endsWith('}')) ||
+                    (content.trim().startsWith('[') && content.trim().endsWith(']'))) {
+                    const parsedContent = JSON.parse(content);
+                    return { html: this.formatJSONResult(parsedContent) };
+                }
+            } catch (e) {
+                // Not JSON, continue with text formatting
+                console.log('Content is not valid JSON, formatting as text');
+            }
+        }
+        
+        // If content is already an object/array, format it as JSON
+        if (typeof content === 'object' && content !== null) {
+            return { html: this.formatJSONResult(content) };
+        }
+        
+        // Text content - Convert plain text to HTML with better formatting
+        
+        // Format code blocks with backticks
+        html = content.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        
+        // Format inline code
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        
+        // Format lists
+        html = html.replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*?<\/li>)\s*(<li>)/g, '$1<li>');
+        html = html.replace(/(<li>.*?<\/li>)+/g, '<ul>$&</ul>');
+        
+        // Format headers
+        html = html.replace(/^#+\s+(.+)$/gm, (match, group) => {
+            const level = match.trim().split(' ')[0].length;
+            return `<h${level}>${group}</h${level}>`;
+        });
+        
+        // Convert newlines to <br> tags, preserving paragraphs
+        html = html.replace(/\n\s*\n/g, '</p><p>');
         html = html.replace(/\n/g, '<br>');
+        html = '<p>' + html + '</p>';
+        html = html.replace(/<p><\/p>/g, '');
         
         // Make URLs clickable
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const urlRegex = /(https?:\/\/[^\s"<]+)/g;
         html = html.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
         
+        // Format bold text
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Format italic text
+        html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        
         return { html };
+    }
+    
+    /**
+     * Format JSON content in a more readable, aesthetic way
+     */
+    formatJSONResult(json) {
+        // Special case: if it's a simple response with just text/message
+        if (json.text || json.message || json.content) {
+            const mainContent = json.text || json.message || json.content;
+            
+            // If the main content is simple text, format it as text
+            if (typeof mainContent === 'string') {
+                let formattedText = this.formatAgenticResult({ content: mainContent }).html;
+                
+                // Create a cleaner display of other metadata if present
+                let metadataHtml = '';
+                Object.keys(json).forEach(key => {
+                    if (key !== 'text' && key !== 'message' && key !== 'content' && json[key] !== null && json[key] !== undefined) {
+                        metadataHtml += `<div class="key-value-pair">
+                            <span class="key">${this.humanizeKey(key)}:</span>
+                            <span class="value">${this.formatValue(json[key])}</span>
+                        </div>`;
+                    }
+                });
+                
+                if (metadataHtml) {
+                    return `
+                        ${formattedText}
+                        <div class="metadata-section">
+                            <h4>Additional Information</h4>
+                            ${metadataHtml}
+                        </div>
+                    `;
+                }
+                
+                return formattedText;
+            }
+        }
+        
+        // Full JSON formatting for complex objects
+        try {
+            return this.formatJSONToHTML(json);
+        } catch (e) {
+            console.error('Error formatting JSON:', e);
+            // Fallback to simple stringification
+            return `<pre class="formatted-json">${JSON.stringify(json, null, 2)}</pre>`;
+        }
+    }
+    
+    /**
+     * Convert a JSON object to formatted HTML
+     */
+    formatJSONToHTML(obj, indent = 0) {
+        if (obj === null) return '<span class="json-null">null</span>';
+        if (obj === undefined) return '<span class="json-null">undefined</span>';
+        
+        // Simple value types
+        if (typeof obj === 'string') return `<span class="json-string">"${this.escapeHTML(obj)}"</span>`;
+        if (typeof obj === 'number') return `<span class="json-number">${obj}</span>`;
+        if (typeof obj === 'boolean') return `<span class="json-boolean">${obj}</span>`;
+        
+        // Arrays
+        if (Array.isArray(obj)) {
+            if (obj.length === 0) return '[]';
+            
+            // Check if this is a simple array of primitives
+            const isSimpleArray = obj.every(item => 
+                typeof item !== 'object' || item === null || 
+                (typeof item === 'object' && Object.keys(item).length <= 3));
+            
+            if (isSimpleArray && obj.length <= 5) {
+                const items = obj.map(item => this.formatJSONToHTML(item, indent + 1)).join(', ');
+                return `[ ${items} ]`;
+            }
+            
+            const items = obj.map(item => 
+                `<div class="json-indent" style="padding-left: ${indent * 10}px">
+                    ${this.formatJSONToHTML(item, indent + 1)}
+                </div>`
+            ).join('');
+            
+            return `[
+                ${items}
+            ]`;
+        }
+        
+        // Objects
+        const keys = Object.keys(obj);
+        if (keys.length === 0) return '{}';
+        
+        // Check if this is a simple key-value object
+        const isSimpleObject = keys.length <= 3 && keys.every(key => 
+            typeof obj[key] !== 'object' || obj[key] === null);
+        
+        if (isSimpleObject) {
+            const pairs = keys.map(key => 
+                `<span class="json-key">"${this.escapeHTML(key)}"</span>: ${this.formatJSONToHTML(obj[key], indent + 1)}`
+            ).join(', ');
+            return `{ ${pairs} }`;
+        }
+        
+        const pairs = keys.map(key => 
+            `<div class="json-indent" style="padding-left: ${indent * 10}px">
+                <span class="json-key">"${this.escapeHTML(key)}"</span>: ${this.formatJSONToHTML(obj[key], indent + 1)}
+            </div>`
+        ).join('');
+        
+        return `{
+            ${pairs}
+        }`;
+    }
+    
+    /**
+     * Format a single value for display
+     */
+    formatValue(value) {
+        if (value === null || value === undefined) return '<span class="json-null">null</span>';
+        if (typeof value === 'string') return this.escapeHTML(value);
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (typeof value === 'object') {
+            if (Object.keys(value).length <= 3) {
+                return this.formatJSONToHTML(value);
+            }
+            return `<details>
+                <summary>View details</summary>
+                <div class="json-indent">${this.formatJSONToHTML(value)}</div>
+            </details>`;
+        }
+        return String(value);
+    }
+    
+    /**
+     * Convert camelCase/snake_case keys to human-readable form
+     */
+    humanizeKey(key) {
+        // Convert camelCase or snake_case to Title Case With Spaces
+        return key
+            .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
+            .replace(/_/g, ' ') // Replace underscores with spaces
+            .replace(/^\s+/g, '') // Remove leading spaces
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .replace(/^\w/, c => c.toUpperCase()); // Capitalize first letter
+    }
+    
+    /**
+     * Escape HTML special characters
+     */
+    escapeHTML(text) {
+        if (typeof text !== 'string') return text;
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
     
     expandForResults() {
@@ -1061,12 +1453,40 @@ class OverlayUI {
         const taskSequence = document.getElementById('task-sequence');
         if (taskSequence) {
             taskSequence.classList.add('results-ready');
+            taskSequence.classList.add('showing-results');
+        }
+        
+        // Make sure task output is visible and scrolled to show content
+        const taskOutput = document.getElementById('task-output');
+        if (taskOutput) {
+            taskOutput.style.display = 'block';
+        }
+        
+        // Ensure panel body is scrolled to show task output
+        const panelBody = document.getElementById('panel-body');
+        if (panelBody) {
+            setTimeout(() => {
+                // Scroll to task sequence first
+                if (taskSequence) {
+                    taskSequence.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                // Then make sure output is visible
+                if (taskOutput) {
+                    setTimeout(() => {
+                        taskOutput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                }
+            }, 100);
         }
     }
     
     async simulateAgenticExecution(tasks, outputElement, progressElement) {
+        // Get task items
         const taskItems = document.querySelectorAll('.task-item');
         let completedTasks = 0;
+        
+        // Clear output initially
+        outputElement.innerHTML = '';
         
         for (let i = 0; i < tasks.length; i++) {
             // Check if task is cancelled
@@ -1089,14 +1509,17 @@ class OverlayUI {
             // Mark current task as active
             taskItems[i].classList.add('active');
             
-            // Add progress output
+            // Add simple progress output
             const outputLine = document.createElement('div');
-            outputLine.textContent = `🔄 ${tasks[i]}...`;
+            outputLine.textContent = `${i+1}. ${tasks[i]}...`;
             outputElement.appendChild(outputLine);
             outputElement.scrollTop = outputElement.scrollHeight;
             
-            // Simulate processing time
-            const processingTime = 1000 + Math.random() * 2000;
+            // Keep the progress visible by scrolling
+            this.scrollToTaskList();
+            
+            // Simple processing time for all steps
+            const processingTime = 800 + Math.random() * 1200;
             await new Promise(resolve => setTimeout(resolve, processingTime));
             
             // Mark as completed
@@ -1108,7 +1531,10 @@ class OverlayUI {
             progressElement.textContent = `${completedTasks}/${tasks.length}`;
             
             // Update output to show completion
-            outputLine.textContent = `✅ ${tasks[i]} completed`;
+            outputLine.textContent = `${i+1}. ${tasks[i]} - complete`;
+            
+            // Scroll again after completion
+            this.scrollToTaskList();
         }
     }
 
@@ -1191,19 +1617,29 @@ class OverlayUI {
     setupTaskControls() {
         const cancelBtn = document.getElementById('cancel-btn');
         const closeTaskBtn = document.getElementById('close-task-btn');
+        const copyResultBtn = document.getElementById('copy-result-btn');
 
-        // Cancel button
-        cancelBtn.addEventListener('click', () => {
-            this.cancelTask();
-        });
+        if (cancelBtn) {
+            // Cancel button
+            cancelBtn.addEventListener('click', () => {
+                this.cancelTask();
+            });
+        }
 
-        // Close button (only available when task is complete)
-        closeTaskBtn.addEventListener('click', () => {
-            this.closeTaskSequence();
-        });
-
-        // Initially hide close button
-        closeTaskBtn.style.display = 'none';
+        if (closeTaskBtn) {
+            // Close button (only available when task is complete)
+            closeTaskBtn.addEventListener('click', () => {
+                this.closeTaskSequence();
+            });
+            
+            // Initially hide close button
+            closeTaskBtn.style.display = 'none';
+        }
+        
+        if (copyResultBtn) {
+            // Initially hide copy button
+            copyResultBtn.style.display = 'none';
+        }
     }
     
     suspendTask() {
@@ -1287,15 +1723,83 @@ class OverlayUI {
     
     closeTaskSequence() {
         const taskSequence = document.getElementById('task-sequence');
-        taskSequence.classList.remove('active');
-        this.currentTaskState = null;
+        const taskControls = document.getElementById('task-controls');
         
-        // Reset controls for next use
+        // Hide sequence UI
+        if (taskSequence) {
+            taskSequence.classList.remove('active');
+            taskSequence.classList.remove('results-ready');
+            taskSequence.classList.remove('showing-results');
+        }
+        
+        // Reset state
+        this.currentTaskState = null;
+        this.taskRunning = false; // Reset task running state
+        
+        // Show screenshots gallery again
+        if (this.screenshotGallery) this.screenshotGallery.style.display = 'block';
+        
+        // Show action buttons again
+        const actionButtons = this.actionsContainer.querySelectorAll('.action-button');
+        actionButtons.forEach(btn => btn.style.display = 'flex');
+        
+        // If there's an action-buttons-container, show it
+        if (this.actionsContainer.querySelector('.action-buttons-container')) {
+            this.actionsContainer.querySelector('.action-buttons-container').style.display = 'block';
+        }
+        
+        // Reset controls
+        if (taskControls) taskControls.classList.remove('active');
         const cancelBtn = document.getElementById('cancel-btn');
         const closeTaskBtn = document.getElementById('close-task-btn');
-
-        cancelBtn.disabled = false;
-        closeTaskBtn.style.display = 'none';
+        if (cancelBtn) cancelBtn.disabled = false;
+        if (closeTaskBtn) closeTaskBtn.style.display = 'none';
+        
+        // Hide task list and output
+        const taskList = document.getElementById('task-list');
+        const taskOutput = document.getElementById('task-output');
+        
+        if (taskList) {
+            taskList.style.display = 'none';
+        }
+        
+        if (taskOutput) {
+            taskOutput.style.opacity = '0';
+            taskOutput.classList.remove('showing-results');
+            setTimeout(() => {
+                taskOutput.style.display = 'none';
+                taskOutput.style.opacity = '1';
+            }, 300);
+        }
+        
+        // Make sure we scroll back to top to show screenshots and actions
+        const panelBody = document.getElementById('panel-body');
+        if (panelBody) {
+            panelBody.scrollTop = 0;
+        }
+    }
+    
+    scrollToTaskList() {
+        // Simple, reliable scrolling that ensures task output is visible
+        try {
+            const panelBody = document.getElementById('panel-body');
+            const taskOutput = document.getElementById('task-output');
+            
+            if (!panelBody) return;
+            
+            // Use setTimeout to ensure this happens after the UI update
+            setTimeout(() => {
+                // First make sure panel body is scrolled to bottom
+                panelBody.scrollTop = panelBody.scrollHeight;
+                
+                // Then ensure task output is scrolled to its bottom
+                if (taskOutput && taskOutput.style.display !== 'none') {
+                    taskOutput.scrollTop = taskOutput.scrollHeight;
+                }
+            }, 50);
+        } catch (err) {
+            console.error('Error scrolling:', err);
+        }
     }
     
     async simulateTaskExecution(tasks, outputElement, progressElement) {
@@ -1395,11 +1899,34 @@ class OverlayUI {
     }
 
     togglePanel() {
+        // Always allow toggling the panel regardless of background state
+        console.log(`Toggling panel. Current state: ${this.isExpanded ? 'expanded' : 'collapsed'}`);
+        
+        // Reset click handled flag
+        this.clickHandled = false;
+        
+        // Force toggle even if dragging state is confused
+        this.isDragging = false;
+        
         if (this.isExpanded) {
             this.collapsePanel();
         } else {
             this.expandPanel();
         }
+        
+        // Ensure eye indicator and click overlay are always visible and clickable
+        this.indicator.style.display = 'flex';
+        this.indicator.style.opacity = '1';
+        this.indicator.style.visibility = 'visible';
+        this.indicator.style.pointerEvents = 'auto';
+        
+        if (this.eyeClickOverlay) {
+            this.eyeClickOverlay.style.display = 'block';
+            this.eyeClickOverlay.style.pointerEvents = 'auto';
+        }
+        
+        // Return true to indicate successful toggle
+        return true;
     }
     
     expandPanel() {
@@ -1408,12 +1935,20 @@ class OverlayUI {
         this.isExpanded = true;
         this.panel.classList.remove('hidden');
         this.indicator.classList.add('active');
-        // Removed panel-expanded class - eye stays visible always
+        
+        // Always ensure eye indicator remains visible and clickable
+        this.indicator.style.display = 'flex';
+        this.indicator.style.opacity = '1';
+        this.indicator.style.visibility = 'visible';
+        this.indicator.style.pointerEvents = 'auto';
+        
         clearTimeout(this.hoverTimeout);
 
         // Focus the panel for keyboard navigation
         this.panel.setAttribute('aria-expanded', 'true');
         this.panel.focus();
+        
+        console.log('Panel expanded, eye indicator remains visible and interactive');
         
         // Check if we have screenshots first before showing loading
         this.checkScreenshotsBeforeLoading();
@@ -1422,36 +1957,44 @@ class OverlayUI {
     collapsePanel() {
         if (!this.isExpanded) return;
         
+        // Even if a task is running, we should still allow the panel to collapse
+        // but keep the eye indicator visible and interactive
+        
         this.isExpanded = false;
         this.panel.classList.add('hidden');
         this.indicator.classList.remove('active');
-        // Removed panel-expanded class removal - eye stays visible always
+        
+        // Always ensure eye indicator remains visible and interactive
+        this.indicator.style.display = 'flex';
+        this.indicator.style.opacity = '1';
+        this.indicator.style.visibility = 'visible';
+        this.indicator.style.pointerEvents = 'auto';
         
         // Update ARIA attributes
         this.panel.setAttribute('aria-expanded', 'false');
         if (this.indicator) {
             this.indicator.focus();
         }
+        
+        console.log('Panel collapsed, eye indicator remains visible and interactive');
     }
     
     dismissOverlay() {
-        // Don't dismiss if task sequence is active or processing gestures
-        const taskSequence = document.getElementById('task-sequence');
-        if (taskSequence && taskSequence.classList.contains('active')) {
-            console.log('🚫 Cannot dismiss overlay while task is running');
-            return;
-        }
-
-        // Don't dismiss if currently processing (loading state visible)
-        const loadingState = document.getElementById('loading-state');
-        if (loadingState && loadingState.style.display !== 'none') {
-            console.log('🚫 Cannot dismiss overlay while processing');
-            return;
-        }
-
-        console.log('👋 Dismissing overlay');
+        // Always collapse the panel but keep the eye indicator visible
+        console.log('👋 Dismissing overlay panel but keeping eye visible');
         this.collapsePanel();
-        ipcRenderer.send('overlay-dismissed');
+        
+        // Only send overlay-dismissed if we're not in a task or processing state
+        // This ensures the eye stays visible and clickable
+        const taskSequence = document.getElementById('task-sequence');
+        const loadingState = document.getElementById('loading-state');
+        const isTaskRunning = taskSequence && taskSequence.classList.contains('active');
+        const isLoading = loadingState && loadingState.style.display !== 'none';
+        
+        // Only fully dismiss if no background processes are running
+        if (!isTaskRunning && !isLoading && !this.isProcessing && !this.taskRunning) {
+            ipcRenderer.send('overlay-dismissed');
+        }
     }
 
     async notifyHover() {
@@ -1570,36 +2113,66 @@ class OverlayUI {
     }
 }
 
-// Initialize overlay UI when DOM is loaded
+// Initialize overlay UI when DOM is loaded and store instance globally
 document.addEventListener('DOMContentLoaded', () => {
-    new OverlayUI();
+    // Create instance and store it globally so we can access it from event listeners
+    window.overlayInstance = new OverlayUI();
+    
+    // Add a global click handler for the eye as a fallback
+    // This ensures we have multiple ways to click the eye
+    const eyeElement = document.getElementById('vipr-indicator');
+    const eyeOverlay = document.getElementById('eye-click-overlay');
+    
+    if (eyeElement) {
+        // Make absolutely sure clicks work
+        eyeElement.onclick = function(e) {
+            console.log('Global eye click handler triggered');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (window.overlayInstance) {
+                window.overlayInstance.togglePanel();
+            }
+            
+            return false;
+        };
+    }
+    
+    if (eyeOverlay) {
+        // Make absolutely sure overlay clicks work
+        eyeOverlay.onclick = function(e) {
+            console.log('Global eye overlay click handler triggered');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (window.overlayInstance) {
+                window.overlayInstance.togglePanel();
+            }
+            
+            return false;
+        };
+    }
 });
 
-// Handle window focus/blur for auto-dismiss
+// Handle window focus/blur - collapse panel but keep eye visible
 window.addEventListener('blur', () => {
-    // Don't dismiss if task sequence is active
-    const taskSequence = document.getElementById('task-sequence');
-    if (taskSequence && taskSequence.classList.contains('active')) {
-        return;
-    }
-
-    // Don't dismiss if currently processing
-    const overlay = document.querySelector('.overlay-container');
-    if (overlay && overlay.isProcessing) {
-        return;
-    }
-
-    // Don't dismiss if loading state is visible
-    const loadingState = document.getElementById('loading-state');
-    if (loadingState && loadingState.style.display !== 'none') {
-        return;
-    }
-
-    // Dismiss overlay when window loses focus
+    // Get the overlay instance
+    const overlayUI = document.querySelector('.overlay-container');
+    if (!overlayUI) return;
+    
+    // Only collapse the panel if it's expanded, but always keep eye visible
+    const overlayInstance = window.overlayInstance;
+    
     setTimeout(() => {
+        // Don't do anything if the window has regained focus
         if (document.hasFocus()) return;
-
-        ipcRenderer.invoke('dismiss-overlay').catch(console.error);
+        
+        // Only collapse the expanded panel, don't dismiss the overlay
+        // This ensures the eye icon remains visible and clickable
+        if (overlayInstance && overlayInstance.isExpanded) {
+            console.log('Window lost focus: collapsing panel but keeping eye visible');
+            overlayInstance.collapsePanel();
+        }
     }, 1000);
 });
 
