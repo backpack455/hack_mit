@@ -1,4 +1,4 @@
-const { createWorker } = require('tesseract.js');
+const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
@@ -7,37 +7,88 @@ const GoogleDriveService = require('./googleDriveService');
 
 class ImageLinkExtractorService {
   constructor() {
-    this.worker = null;
+    this.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    this.ai = null;
     this.googleDriveService = new GoogleDriveService();
-  }
-
-  /**
-   * Initialize the OCR worker
-   */
-  async initialize() {
-    try {
-      // Simple initialization without custom paths
-      this.worker = await createWorker('eng');
-      console.log('OCR worker initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize OCR worker:', error);
-      throw new Error(`OCR initialization failed: ${error.message}`);
+    
+    // Initialize Anthropic AI service if API key is available
+    if (this.anthropicApiKey) {
+      try {
+        this.ai = new Anthropic({
+          apiKey: this.anthropicApiKey,
+        });
+        console.log('Anthropic Claude AI initialized for text extraction');
+      } catch (error) {
+        console.error('Failed to initialize Anthropic AI for text extraction:', error);
+        this.ai = null;
+      }
+    } else {
+      console.warn('ANTHROPIC_API_KEY not found - text extraction will be unavailable');
     }
   }
 
   /**
-   * Extract text from an image using OCR
+   * Initialize the service
+   */
+  async initialize() {
+    try {
+      console.log('Text extraction service initialized with Anthropic Claude');
+      return true;
+    } catch (error) {
+      console.error('Failed to initialize text extraction service:', error);
+      throw new Error(`Text extraction initialization failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from an image using Anthropic Claude
    * @param {string} imagePath - Path to the image file
    * @returns {Promise<string>} Extracted text
    */
   async extractTextFromImage(imagePath) {
     try {
-      if (!this.worker) {
-        await this.initialize();
+      if (!this.ai) {
+        throw new Error('Anthropic AI service not available (missing API key)');
       }
       
-      const { data: { text } } = await this.worker.recognize(imagePath);
-      return text;
+      // Read image file as base64
+      const imageBuffer = await fs.promises.readFile(imagePath);
+      const base64Image = imageBuffer.toString('base64');
+      const mimeType = this.getMimeType(imagePath);
+
+      const prompt = `Extract all text content from this image. Please provide:
+1. All visible text exactly as it appears
+2. Preserve formatting, line breaks, and structure as much as possible
+3. Include URLs, email addresses, and any other text-based content
+4. If there are multiple columns or sections, clearly separate them
+
+Please return only the extracted text without any additional commentary or formatting.`;
+
+      const message = await this.ai.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mimeType,
+                data: base64Image,
+              },
+            },
+            {
+              type: "text",
+              text: prompt,
+            },
+          ],
+        }],
+      });
+
+      const extractedText = message.content[0].text;
+      return extractedText.trim();
+      
     } catch (error) {
       console.error('Error extracting text from image:', error);
       throw error;
@@ -168,7 +219,7 @@ class ImageLinkExtractorService {
    */
   async processImageForLinks(imagePath) {
     try {
-      // 1. Extract text from image using OCR
+      // 1. Extract text from image using Anthropic Claude
       const extractedText = await this.extractTextFromImage(imagePath);
       console.log('Extracted text from image:', extractedText);
       
@@ -221,13 +272,28 @@ class ImageLinkExtractorService {
   }
 
   /**
+   * Get MIME type from file extension
+   * @private
+   */
+  getMimeType(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp'
+    };
+    return mimeTypes[ext] || 'image/png';
+  }
+
+  /**
    * Clean up resources
    */
   async cleanup() {
-    if (this.worker) {
-      await this.worker.terminate();
-      this.worker = null;
-    }
+    // No cleanup needed for Anthropic API
+    console.log('Text extraction service cleanup completed');
   }
 }
 

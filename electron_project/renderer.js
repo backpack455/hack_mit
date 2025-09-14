@@ -5,7 +5,7 @@ let screenshots = [];
 let currentMode = 'study';
 
 // Lightweight "DB" stub for demo sessions
-const sessions = [];
+let sessions = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
@@ -15,8 +15,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   setModeUI(initialMode);
   window.electronAPI.onModeChanged((mode) => setModeUI(mode));
 
+  // Load sessions from overlay service
+  await loadSessions();
+  
   // Initial render of sessions
   renderSessions();
+
+  // Refresh sessions periodically to show new gesture screenshots
+  setInterval(async () => {
+    await loadSessions();
+    renderSessions();
+  }, 5000); // Refresh every 5 seconds
 });
 
 function setupNavigation() {
@@ -46,6 +55,18 @@ function setModeUI(mode) {
 
   // render sessions for this mode
   renderSessions();
+}
+
+// Load sessions from the overlay service
+async function loadSessions() {
+  try {
+    const loadedSessions = await window.electronAPI.getSessions();
+    sessions = loadedSessions || [];
+    console.log('Loaded sessions:', sessions.length);
+  } catch (error) {
+    console.error('Error loading sessions:', error);
+    sessions = [];
+  }
 }
 
 function renderSessions() {
@@ -111,7 +132,9 @@ function createSessionCard(session) {
   // Create preview content
   let previewContent = '';
   if (screenshot) {
-    previewContent = `<div class="session-preview"><img src="${screenshot.path}" alt="Session preview" /></div>`;
+    // Handle both file paths and data URLs
+    const imageSrc = screenshot.dataURL || `file://${screenshot.path}`;
+    previewContent = `<div class="session-preview"><img src="${imageSrc}" alt="Session preview" onerror="this.style.display='none'" /></div>`;
   } else if (transcript) {
     previewContent = `<div class="session-preview-text">Transcript preview: Lorem ipsum dolor sit amet, consectetur adipiscing elit...</div>`;
   }
@@ -123,6 +146,7 @@ function createSessionCard(session) {
     </div>
     ${previewContent}
     <div class="session-actions">
+      <button class="session-action-btn" onclick="viewSessionDetails('${session.id}')">View Screenshots</button>
       <button class="session-action-btn" onclick="convertToSlideDeck('${session.id}')">Convert to Slide Deck</button>
       <button class="session-action-btn" onclick="generateVisual('${session.id}')">Generate Visual</button>
       <button class="session-action-btn" onclick="requestAIClarification('${session.id}')">Request AI Clarification</button>
@@ -130,6 +154,90 @@ function createSessionCard(session) {
   `;
 
   return card;
+}
+
+// View session details with screenshots
+async function viewSessionDetails(sessionId) {
+  try {
+    const sessionDetails = await window.electronAPI.getSessionDetails(sessionId);
+    if (!sessionDetails) {
+      alert('Session details not found.');
+      return;
+    }
+    
+    showSessionModal(sessionDetails);
+  } catch (error) {
+    console.error('Error loading session details:', error);
+    alert('Failed to load session details.');
+  }
+}
+
+// Show session details modal
+function showSessionModal(sessionDetails) {
+  const modal = document.createElement('div');
+  modal.className = 'session-modal';
+  
+  const screenshotsHtml = sessionDetails.screenshots.map((screenshot, index) => {
+    const imageSrc = screenshot.dataURL || `file://${screenshot.imagePath || screenshot.path}`;
+    return `
+      <div class="session-screenshot-item">
+        <img src="${imageSrc}" alt="Screenshot ${index + 1}" onerror="this.style.display='none'" />
+        <div class="screenshot-info">
+          <p><strong>Captured:</strong> ${new Date(screenshot.timestamp).toLocaleString()}</p>
+          ${screenshot.processingResult ? `
+            <p><strong>AI Description:</strong> ${screenshot.processingResult.visualDescription.description || 'N/A'}</p>
+            <p><strong>URLs Found:</strong> ${screenshot.processingResult.urls.found.length}</p>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  modal.innerHTML = `
+    <div class="modal-content session-modal-content">
+      <div class="modal-header">
+        <h3>Session Details</h3>
+        <span class="close-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="session-screenshots">
+          <h4>Screenshots (${sessionDetails.screenshots.length})</h4>
+          <div class="screenshots-grid">
+            ${screenshotsHtml}
+          </div>
+        </div>
+        ${sessionDetails.contextFiles && sessionDetails.contextFiles.length > 0 ? `
+          <div class="session-context">
+            <h4>Context Files</h4>
+            <ul>
+              ${sessionDetails.contextFiles.map(file => `<li>${file}</li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Close modal handlers
+  const closeBtn = modal.querySelector('.close-modal');
+  closeBtn.onclick = () => modal.remove();
+  
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  };
+  
+  // ESC key to close
+  const handleEsc = (e) => {
+    if (e.key === 'Escape') {
+      modal.remove();
+      document.removeEventListener('keydown', handleEsc);
+    }
+  };
+  document.addEventListener('keydown', handleEsc);
 }
 
 // Placeholder functions for session actions

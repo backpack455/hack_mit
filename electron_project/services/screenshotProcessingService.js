@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { GoogleGenAI } = require('@google/genai');
+const Anthropic = require('@anthropic-ai/sdk');
 const ImageLinkExtractorService = require('./imageLinkExtractorService');
 const GoogleDriveService = require('./googleDriveService');
 
@@ -14,24 +14,26 @@ const GoogleDriveService = require('./googleDriveService');
  */
 class ScreenshotProcessingService {
   constructor() {
-    // this.geminiApiKey = process.env.GEMINI_API_KEY;
-    this.geminiApiKey = 'AIzaSyBfvnikwbtV-MrIZVpercLtvIfHhCaBMso';
+    this.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
     this.ai = null;
     this.imageLinkExtractor = new ImageLinkExtractorService();
     this.googleDriveService = new GoogleDriveService();
     this.sessionData = new Map(); // Store session-specific data
     this.tempFiles = new Set(); // Track temporary files for cleanup
     
-    // Initialize AI service if API key is available
-    if (this.geminiApiKey) {
+    // Initialize Anthropic AI service if API key is available
+    if (this.anthropicApiKey) {
       try {
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-        this.ai = new GoogleGenerativeAI(this.geminiApiKey);
-        console.log('Gemini AI initialized successfully');
+        this.ai = new Anthropic({
+          apiKey: this.anthropicApiKey,
+        });
+        console.log('Anthropic Claude AI initialized successfully');
       } catch (error) {
-        console.error('Failed to initialize Gemini AI:', error);
+        console.error('Failed to initialize Anthropic AI:', error);
         this.ai = null;
       }
+    } else {
+      console.warn('ANTHROPIC_API_KEY not found in environment variables');
     }
   }
 
@@ -74,7 +76,7 @@ class ScreenshotProcessingService {
       if (!this.ai) {
         return {
           success: false,
-          error: 'Gemini AI service not available (missing API key)',
+          error: 'Anthropic AI service not available (missing API key)',
           description: 'AI description unavailable'
         };
       }
@@ -92,20 +94,29 @@ class ScreenshotProcessingService {
 
 Keep the description under 150 words and make it useful for context understanding.`;
 
-      const model = this.ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
-      const result = await model.generateContent([
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType
-          }
-        },
-        prompt
-      ]);
+      const message = await this.ai.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 300,
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mimeType,
+                data: base64Image,
+              },
+            },
+            {
+              type: "text",
+              text: prompt,
+            },
+          ],
+        }],
+      });
 
-      const response = await result.response;
-      const description = response.text();
+      const description = message.content[0].text;
 
       return {
         success: true,
@@ -736,7 +747,7 @@ Keep the description under 150 words and make it useful for context understandin
   getStatus() {
     return {
       initialized: true,
-      aiAvailable: !!this.ai,
+      aiAvailable: !!this.ai && !!this.anthropicApiKey,
       ocrAvailable: !!this.imageLinkExtractor.worker,
       googleDriveAvailable: this.googleDriveService.isInitialized(),
       activeSessions: this.sessionData.size,

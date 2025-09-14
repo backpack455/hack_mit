@@ -1,42 +1,53 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const fs = require('fs');
+const path = require('path');
 
 // existing API functions for screenshot, gestures...
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Already existing methods:
-  captureScreenshot: () => ipcRenderer.invoke('capture-screenshot'),
+  // App version
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  
+  // Show message
+  showMessage: (message) => ipcRenderer.invoke('show-message', message),
+  
+  // Gesture controls
   toggleGestureMode: (enabled) => ipcRenderer.invoke('toggle-gesture-mode', enabled),
   getGestureStatus: () => ipcRenderer.invoke('get-gesture-status'),
-  onScreenshotCaptured: (callback) => ipcRenderer.on('screenshot-captured', (event, data) => callback(event, data)),
-  onGestureModeChanged: (callback) => ipcRenderer.on('gesture-mode-changed', (event, enabled) => callback(event, enabled)),
+  gestureDetected: () => ipcRenderer.invoke('gesture-detected'),
+  
+  // Screenshot functionality
+  captureScreenshot: () => ipcRenderer.invoke('capture-screenshot'),
   openScreenshotFolder: (filePath) => ipcRenderer.invoke('open-screenshot-folder', filePath),
-
-  // NEW: mode and after-capture handling
+  
+  // Mode management
   setMode: (mode) => ipcRenderer.invoke('set-mode', mode),
   getMode: () => ipcRenderer.invoke('get-mode'),
-  onModeChanged: (callback) => ipcRenderer.on('mode-changed', (_event, mode) => callback(mode)),
-  setAfterCaptureAction: (action) => ipcRenderer.invoke('set-after-capture-action', action),
-  getAfterCaptureAction: () => ipcRenderer.invoke('get-after-capture-action'),
-  onAfterCaptureChanged: (callback) => ipcRenderer.on('after-capture-changed', (_event, action) => callback(action)),
-
-  // Event listener cleanup
+  
+  // Session management
+  getSessions: () => ipcRenderer.invoke('get-sessions'),
+  getSessionDetails: (sessionId) => ipcRenderer.invoke('get-session-details', sessionId),
+  
+  // Event listeners
+  onScreenshotCaptured: (callback) => ipcRenderer.on('screenshot-captured', callback),
+  onGestureModeChanged: (callback) => ipcRenderer.on('gesture-mode-changed', callback),
+  onModeChanged: (callback) => ipcRenderer.on('mode-changed', callback),
+  onAccessibilityPermissionNeeded: (callback) => ipcRenderer.on('accessibility-permission-needed', callback),
+  onFocusChanged: (callback) => ipcRenderer.on('focus-changed', callback),
+  onAfterCaptureChanged: (callback) => ipcRenderer.on('after-capture-changed', callback),
+  
+  // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
   
-  // Additional event listeners that may be needed
-  onAccessibilityPermissionNeeded: (callback) => ipcRenderer.on('accessibility-permission-needed', callback),
-  gestureDetected: () => ipcRenderer.invoke('gesture-detected'),
-  // URL Context Retrieval API
-  retrieveUrlContext: (url, query = null) => ipcRenderer.invoke('retrieve-url-context', url, query),
+  // URL Context Retrieval
+  retrieveUrlContext: (url, query) => ipcRenderer.invoke('retrieve-url-context', url, query),
+  extractGoogleDrive: (url, query) => ipcRenderer.invoke('extract-google-drive', url, query),
+  initGoogleDrive: (credentials) => ipcRenderer.invoke('init-google-drive', credentials),
   getUrlSummary: (url) => ipcRenderer.invoke('get-url-summary', url),
-  getRawContent: (url, useBrowser = false) => ipcRenderer.invoke('get-raw-content', url, useBrowser),
-  batchRetrieveUrlContext: (urls, query = null) => ipcRenderer.invoke('batch-retrieve-url-context', urls, query),
-  
-  // Cache management
+  getRawContent: (url, useBrowser) => ipcRenderer.invoke('get-raw-content', url, useBrowser),
+  batchRetrieveUrlContext: (urls, query) => ipcRenderer.invoke('batch-retrieve-url-context', urls, query),
   clearContextCache: () => ipcRenderer.invoke('clear-context-cache'),
   getCacheStats: () => ipcRenderer.invoke('get-cache-stats'),
   
-  // Google Drive integration
-  extractGoogleDrive: (url, query) => ipcRenderer.invoke('extract-google-drive', url, query),
-  initGoogleDrive: (credentials) => ipcRenderer.invoke('init-google-drive', credentials),
   
   // Add more API methods here as needed
   platform: process.platform,

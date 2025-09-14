@@ -130,6 +130,10 @@ class OverlayService {
         const base64Data = screenshot.dataURL.replace(/^data:image\/png;base64,/, '');
         await fs.writeFile(screenshotPath, base64Data, 'base64');
         
+        // Update screenshot object with file path for frontend display
+        screenshot.path = screenshotPath;
+        screenshot.filename = `screenshot_${screenshot.id}.png`;
+        
         // Process screenshot with AI, OCR, and URL extraction
         console.log('🔄 Processing screenshot with session ID:', this.currentSessionId);
         const processingResult = await this.screenshotProcessor.processScreenshot(screenshotPath, this.currentSessionId);
@@ -143,7 +147,7 @@ class OverlayService {
           screenshot.processingResult = processingResult.data;
           screenshot.contextFile = processingResult.contextFile;
           
-          // Add to context queue
+          // Add to context queue (screenshot already has path and dataURL)
           this.addToScreenshotQueue(screenshot);
           
           // Generate actions based on processing results
@@ -155,7 +159,7 @@ class OverlayService {
           await this.showOverlay(actions);
         } else {
           console.error('❌ Failed to process screenshot:', processingResult.error);
-          // Fallback to basic screenshot handling
+          // Fallback to basic screenshot handling (screenshot already has path and dataURL)
           this.addToScreenshotQueue(screenshot);
           const actions = this.generateMockActions(screenshot);
           await this.showOverlay(actions);
@@ -647,6 +651,84 @@ class OverlayService {
       console.error(`❌ Error executing action ${actionId}:`, error);
       return { success: false, actionId, error: error.message };
     }
+  }
+
+  /**
+   * Get sessions formatted for Session History page
+   */
+  getSessionsForHistory() {
+    const sessions = [];
+    
+    // Get session data from screenshot processor
+    if (this.screenshotProcessor && this.screenshotProcessor.sessionData) {
+      for (const [sessionId, sessionInfo] of this.screenshotProcessor.sessionData) {
+        if (sessionInfo.screenshots && sessionInfo.screenshots.length > 0) {
+          const session = {
+            id: sessionId,
+            title: `Screenshot Session ${new Date(sessionInfo.startTime).toLocaleDateString()}`,
+            created_at: sessionInfo.startTime,
+            mode: 'study', // Default mode, could be enhanced to track actual mode
+            artifacts: sessionInfo.screenshots.map(screenshot => ({
+              kind: 'screenshot',
+              path: screenshot.imagePath,
+              dataURL: screenshot.dataURL || null,
+              timestamp: screenshot.timestamp,
+              filename: screenshot.metadata?.fileName || 'screenshot.png',
+              processingResult: screenshot.processingResult || null
+            }))
+          };
+          sessions.push(session);
+        }
+      }
+    }
+    
+    // Also include screenshots from the overlay queue
+    if (this.screenshotQueue.length > 0) {
+      const queueSession = {
+        id: 'current_queue',
+        title: `Current Session - ${this.screenshotQueue.length} screenshots`,
+        created_at: new Date().toISOString(),
+        mode: 'study',
+        artifacts: this.screenshotQueue.map(screenshot => ({
+          kind: 'screenshot',
+          path: screenshot.path || screenshot.filePath,
+          dataURL: screenshot.dataURL || null,
+          timestamp: screenshot.timestamp,
+          filename: screenshot.filename || 'screenshot.png',
+          processingResult: screenshot.processingResult || null
+        }))
+      };
+      sessions.push(queueSession);
+    }
+    
+    return sessions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  /**
+   * Get detailed session information
+   */
+  getSessionDetails(sessionId) {
+    if (sessionId === 'current_queue') {
+      return {
+        id: sessionId,
+        screenshots: this.screenshotQueue,
+        contextFiles: this.screenshotQueue.map(s => s.contextFile).filter(Boolean)
+      };
+    }
+    
+    if (this.screenshotProcessor && this.screenshotProcessor.sessionData) {
+      const sessionInfo = this.screenshotProcessor.sessionData.get(sessionId);
+      if (sessionInfo) {
+        return {
+          id: sessionId,
+          screenshots: sessionInfo.screenshots,
+          contextFiles: sessionInfo.contextFiles || [],
+          sessionContextFile: sessionInfo.sessionContextFile
+        };
+      }
+    }
+    
+    return null;
   }
 
   /**

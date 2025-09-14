@@ -301,21 +301,9 @@ async function captureScreenshot() {
       });
     }
     
-    // Show overlay when screenshot is captured
-    if (overlayService && !overlayService.isOverlayVisible) {
-      console.log('📸 Screenshot captured, showing overlay...');
-      // Create a mock screenshot object for overlay
-      const mockScreenshot = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        filename: filename,
-        filePath: filePath
-      };
-      
-      overlayService.addToScreenshotQueue(mockScreenshot);
-      const actions = overlayService.generateMockActions(mockScreenshot);
-      overlayService.showOverlay(actions);
-    }
+    // Note: Overlay handling is now done by overlayService.handleCircleGesture()
+    // This function is now only used for manual screenshot capture (Cmd+Shift+S)
+    // The gesture-based screenshots are handled entirely by the overlay service
     
     return filename;
   } catch (error) {
@@ -743,10 +731,13 @@ async function handleGestureMessage(message) {
         console.log('Global circular gesture detected!');
         console.log('Capturing screenshot...');
         
-        // Trigger overlay service
+        // Trigger overlay service - this handles both screenshot capture and processing
         if (overlayService) {
           await overlayService.handleCircleGesture();
         }
+        
+        // Don't call the old captureScreenshot() function anymore
+        // The overlay service handles everything now
       }
       break;
       
@@ -922,6 +913,22 @@ ipcMain.handle('capture-screenshot', () => {
 
 ipcMain.handle('get-gesture-status', () => {
   return isGestureMode;
+});
+
+// IPC handler to get sessions for Session History page
+ipcMain.handle('get-sessions', () => {
+  if (overlayService) {
+    return overlayService.getSessionsForHistory();
+  }
+  return [];
+});
+
+// IPC handler to get session details
+ipcMain.handle('get-session-details', (event, sessionId) => {
+  if (overlayService) {
+    return overlayService.getSessionDetails(sessionId);
+  }
+  return null;
 });
 
 // IPC handlers for mode and after-capture action are already defined in app.whenReady()
