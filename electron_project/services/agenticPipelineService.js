@@ -22,10 +22,44 @@ class AgenticPipelineService {
             const taskAnalysis = await this.contextAnalyzer.generateTaskRecommendations();
             console.log('📋 Generated', taskAnalysis.tasks.length, 'task recommendations');
             
+            // Debug task analysis
+            console.log('\nTask Analysis Details:');
+            console.log('Context File:', taskAnalysis.contextFile);
+            console.log('Tasks:', JSON.stringify(taskAnalysis.tasks, null, 2));
+            
+            // Log task analysis for debugging
+            console.log('Task Analysis:', {
+                contextFile: taskAnalysis.contextFile,
+                taskCount: taskAnalysis.tasks.length,
+                contentLength: taskAnalysis.contextContent?.length || 0
+            });
+            
             // Step 2: Match tasks to best MCP agents with context similarity
             const contextContent = taskAnalysis.contextContent || '';
             const agentRecommendations = await this.agentMatcher.generateRecommendations(taskAnalysis.tasks, contextContent);
             console.log('🤖 Matched tasks to MCP agents');
+            
+            // Log agent recommendations for debugging
+            console.log('Agent Recommendations:', {
+                actionCount: agentRecommendations.actions.length,
+                agents: agentRecommendations.actions.map(a => ({
+                    id: a.id,
+                    title: a.title,
+                    description: a.description,
+                    agent: a.mcpAgent,
+                    score: a.similarityScore
+                }))
+            });
+
+            // Print more detailed options for debugging
+            console.log('\nRecommended Actions:');
+            agentRecommendations.actions.forEach(action => {
+                console.log(`\n${action.title}`);
+                console.log(`Description: ${action.description}`);
+                console.log(`Agent: ${action.mcpAgent}`);
+                console.log(`Confidence: ${action.confidence}`);
+                console.log('---');
+            });
             
             // Step 3: Create overlay actions with similarity data
             const overlayActions = agentRecommendations.actions.map(action => ({
@@ -122,20 +156,53 @@ class AgenticPipelineService {
     async executeAgenticAction(actionId) {
         try {
             console.log(`🔍 DEBUG: Executing action ${actionId}`);
-            console.log(`🔍 DEBUG: currentRecommendations exists:`, !!this.currentRecommendations);
+            console.log(`🔍 DEBUG: Current state:`, {
+                hasRecommendations: !!this.currentRecommendations,
+                actionCount: this.currentRecommendations?.overlayActions?.length || 0
+            });
             
-            if (!this.currentRecommendations) {
-                throw new Error('No current recommendations available');
+            // If no recommendations, try to generate them first
+            if (!this.currentRecommendations || !this.currentRecommendations.overlayActions) {
+                console.log('🔄 No current recommendations, generating new ones...');
+                const actions = await this.generateSmartRecommendations();
+                console.log('Generated actions:', actions);
+                
+                this.currentRecommendations = {
+                    overlayActions: actions,
+                    timestamp: new Date().toISOString()
+                };
             }
+            
+            // Validate after potential generation
+            if (!this.currentRecommendations || !this.currentRecommendations.overlayActions) {
+                throw new Error('Failed to generate recommendations');
+            }
+            
+            // Log available actions
+            console.log('Available actions:', this.currentRecommendations.overlayActions.map(a => ({
+                id: a.id,
+                title: a.title
+            })));
 
             console.log(`🔍 DEBUG: overlayActions count:`, this.currentRecommendations.overlayActions?.length || 0);
             console.log(`🔍 DEBUG: Available action IDs:`, this.currentRecommendations.overlayActions?.map(a => a.id) || []);
 
             // Find the action in current recommendations
             const action = this.currentRecommendations.overlayActions.find(a => a.id === actionId);
+            console.log('🔍 Looking for action:', actionId);
+            console.log('🔍 Available actions:', this.currentRecommendations.overlayActions);
+            
             if (!action) {
+                console.error('❌ Action not found. Available actions:', 
+                    this.currentRecommendations.overlayActions.map(a => ({
+                        id: a.id,
+                        title: a.title
+                    }))
+                );
                 throw new Error(`Action ${actionId} not found in current recommendations`);
             }
+            
+            console.log('✅ Found matching action:', action);
 
             console.log(`🚀 Executing agentic action: ${action.title}`);
             

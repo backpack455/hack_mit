@@ -218,8 +218,18 @@ class DedalusService {
     }
 
     async executeAgenticTask(taskData, mcpAgent, contextContent, similarityData = null) {
+        // Wait for initialization before proceeding
         if (!this.isInitialized) {
-            throw new Error('Dedalus Service not initialized');
+            console.log('🔄 Waiting for Dedalus Service initialization...');
+            let attempts = 0;
+            while (!this.isInitialized && attempts < 5) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                attempts++;
+            }
+            if (!this.isInitialized) {
+                throw new Error('Dedalus Service failed to initialize after waiting');
+            }
+            console.log('✅ Dedalus Service now initialized');
         }
 
         try {

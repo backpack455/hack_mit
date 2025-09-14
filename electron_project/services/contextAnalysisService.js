@@ -122,6 +122,18 @@ Focus on tasks that would be most valuable given the user's current context and 
             const taskRecommendations = JSON.parse(jsonText.trim());
             
             console.log('✅ Generated task recommendations:', taskRecommendations.tasks.length);
+            
+            // Print detailed task information
+            console.log('\nGenerated Tasks:');
+            taskRecommendations.tasks.forEach((task, index) => {
+                console.log(`\nTask ${index + 1}: ${task.title}`);
+                console.log(`Description: ${task.description}`);
+                console.log(`Category: ${task.category}`);
+                console.log(`Priority: ${task.priority}`);
+                console.log(`Keywords: ${task.keywords.join(', ')}`);
+                console.log('---');
+            });
+            
             return taskRecommendations.tasks;
 
         } catch (error) {

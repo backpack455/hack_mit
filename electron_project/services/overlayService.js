@@ -363,19 +363,16 @@ class OverlayService {
   /**
    * Handle circle gesture detection - toggle overlay visibility
    */
-  async handleCircleGesture() {
-    try {
-      // If overlay is visible, hide it (toggle off)
-      if (this.isOverlayVisible) {
-        console.log('🔄 Toggling overlay off...');
-        this.hideOverlay();
-        return;
-      }
-      
-      console.log('📸 Capturing screenshot...');
-      console.log('🔍 DEBUG: About to capture screenshot');
-      
-      // Show brief capture indicator
+    async handleCircleGesture() {
+        try {
+            // Reset current recommendations to force fresh generation
+            if (this.agenticPipeline) {
+                this.agenticPipeline.currentRecommendations = null;
+            }
+            
+            // Always capture screenshot - don't toggle overlay off
+            console.log('📸 Capturing screenshot...');
+            console.log('🔍 DEBUG: About to capture screenshot');      // Show brief capture indicator
       this.showCaptureIndicator();
       
       // Capture screenshot
@@ -414,6 +411,11 @@ class OverlayService {
           // Add to context queue (screenshot already has path and dataURL)
           this.addToScreenshotQueue(screenshot);
           
+          // Update overlay with new screenshot if it's visible
+          if (this.isOverlayVisible && this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+            this.overlayWindow.webContents.send('screenshot-added', screenshot);
+          }
+          
           // Generate smart agentic recommendations
           const actions = await this.generateAgenticRecommendations();
           console.log('🎯 Generated agentic recommendations:', actions.length);
@@ -445,21 +447,31 @@ class OverlayService {
     try {
       const sources = await desktopCapturer.getSources({
         types: ['window', 'screen'],
-        thumbnailSize: { width: 1920, height: 1080 }
+        thumbnailSize: { width: 1920, height: 1080 },
+        fetchWindowIcons: false
       });
 
       if (sources.length > 0) {
         // Get the primary screen or first available source
         const primarySource = sources.find(source => source.name === 'Entire Screen') || sources[0];
         
+        // Get full resolution image, not just thumbnail
+        const fullSources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 3840, height: 2160 } // 4K resolution for full quality
+        });
+        
+        const fullSource = fullSources.find(source => source.name === 'Entire Screen') || fullSources[0];
+        const fullImage = fullSource ? fullSource.thumbnail : primarySource.thumbnail;
+        
         const screenshot = {
           id: Date.now().toString(),
           timestamp: new Date().toISOString(),
-          dataURL: primarySource.thumbnail.toDataURL(),
+          dataURL: fullImage.toDataURL('image/png', 1.0), // Full quality PNG
           source: primarySource.name,
           size: {
-            width: primarySource.thumbnail.getSize().width,
-            height: primarySource.thumbnail.getSize().height
+            width: fullImage.getSize().width,
+            height: fullImage.getSize().height
           }
         };
 
@@ -491,7 +503,6 @@ class OverlayService {
    */
   generateActionsFromProcessing(processingData) {
     const actions = [];
-    
     // Always include view context action
     actions.push({
       id: 'view_context',
@@ -501,13 +512,8 @@ class OverlayService {
       confidence: 1.0,
       data: {
         contextFile: processingData.contextFile,
-        hasAI: processingData.visualDescription.success,
-        hasOCR: processingData.ocrText.success,
-        urlCount: processingData.urls.count
       }
     });
-    
-    // Add OCR text action if text was extracted
     if (processingData.ocrText.success && processingData.ocrText.extractedText.trim()) {
       actions.push({
         id: 'copy_text',

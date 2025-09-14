@@ -410,18 +410,14 @@ class OverlayUI {
     }
 
     setupIPCListeners() {
-        // Listen for eye icon show/hide commands
+        // Eye icon is always visible - removed hide functionality
         ipcRenderer.on('show-eye-icon', () => {
             this.indicator.style.display = 'flex';
             this.indicator.style.opacity = '1';
             this.indicator.style.visibility = 'visible';
         });
         
-        ipcRenderer.on('hide-eye-icon', () => {
-            this.indicator.style.display = 'none';
-            this.indicator.style.opacity = '0';
-            this.indicator.style.visibility = 'hidden';
-        });
+        // Removed hide-eye-icon handler - eye stays visible always
         
         // Listen for actions from main process
         ipcRenderer.on('show-actions', (_, actions) => {
@@ -435,6 +431,13 @@ class OverlayUI {
             if (!this.isExpanded) {
                 this.togglePanel();
             }
+        });
+        
+        // Listen for new screenshots being added
+        ipcRenderer.on('screenshot-added', (_, screenshot) => {
+            console.log('📸 New screenshot added to overlay:', screenshot.id);
+            // Refresh the overlay content to show new screenshot
+            this.checkScreenshotsBeforeLoading();
         });
         
         // Listen for position changes from main process
@@ -591,21 +594,37 @@ class OverlayUI {
     }
 
     renderActions() {
+        console.log("Rendering actions:", this.actions);
+        
         // Clear existing actions (but preserve loading state)
         const actionButtons = this.actionsContainer.querySelectorAll('.action-button');
         actionButtons.forEach(btn => btn.remove());
 
-        if (this.actions.length === 0) {
+        if (!this.actions || this.actions.length === 0) {
             // Show empty state
             this.showEmptyState();
-        } else {
-            // Hide empty state and create action buttons
-            this.hideEmptyState();
-            this.actions.forEach((action) => {
-                const actionButton = this.createActionButton(action);
-                this.actionsContainer.appendChild(actionButton);
-            });
+            return;
         }
+        
+        // Hide empty state and create action buttons
+        this.hideEmptyState();
+        this.hideLoadingState();
+        
+        // Create wrapper for better styling
+        const actionButtonsContainer = document.createElement('div');
+        actionButtonsContainer.className = 'action-buttons-container';
+        
+        // Create and append each action button
+        this.actions.forEach((action) => {
+            if (!action || !action.id) {
+                console.error("Invalid action:", action);
+                return;
+            }
+            const actionButton = this.createActionButton(action);
+            this.actionsContainer.appendChild(actionButton);
+        });
+        
+        console.log("Rendered action buttons:", actionButtons.length);
     }
 
     showLoadingState() {
@@ -628,6 +647,9 @@ class OverlayUI {
     }
 
     showEmptyState(message = "No current recommendations available.") {
+        // Hide loading state first
+        this.hideLoadingState();
+        
         const emptyState = this.actionsContainer.querySelector('.empty-state');
         if (emptyState) {
             const messageElement = emptyState.querySelector('p');
@@ -654,6 +676,25 @@ class OverlayUI {
         });
     }
 
+    checkScreenshotsBeforeLoading() {
+        // Check if screenshots exist before showing loading state
+        ipcRenderer.invoke('get-screenshot-queue').then(screenshots => {
+            if (screenshots.length === 0) {
+                // No screenshots - show empty state instead of loading
+                this.showEmptyState("Take a screenshot to get AI-powered recommendations.");
+            } else {
+                // Screenshots exist - show loading while generating actions
+                if (this.actions.length === 0) {
+                    this.showLoadingState();
+                }
+                this.renderScreenshots(screenshots);
+            }
+        }).catch(error => {
+            console.error('❌ Error checking screenshots:', error);
+            this.showEmptyState("Take a screenshot to get AI-powered recommendations.");
+        });
+    }
+
     hideEmptyState() {
         const emptyState = this.actionsContainer.querySelector('.empty-state');
         if (emptyState) {
@@ -662,20 +703,38 @@ class OverlayUI {
     }
 
     createActionButton(action) {
+        console.log("Creating button for action:", action);
+        
         const button = document.createElement('button');
-        button.className = 'action-button';
+        button.className = 'action-button action-btn';
         button.setAttribute('aria-label', action.description);
         button.setAttribute('tabindex', '0');
+        button.setAttribute('data-action-id', action.id);
 
         // Create confidence indicator
         const confidenceBar = document.createElement('div');
         confidenceBar.className = 'confidence-indicator';
-        confidenceBar.style.width = `${action.confidence * 100}%`;
+        
+        // Handle confidence values correctly
+        let confidenceValue = action.confidence;
+        if (typeof confidenceValue === 'number') {
+            // Normalize if > 1 (some confidence scores come in as 0-100 range)
+            if (confidenceValue > 1) {
+                confidenceValue = confidenceValue / 20; // Scale large values reasonably 
+            }
+            
+            // Ensure it's between 0-100%
+            confidenceValue = Math.min(Math.max(confidenceValue, 0), 1);
+            confidenceBar.style.width = `${confidenceValue * 100}%`;
+        } else {
+            // Default to 50% if no valid confidence
+            confidenceBar.style.width = "50%";
+        }
 
         // Create icon
         const icon = document.createElement('div');
         icon.className = 'action-icon';
-        icon.innerHTML = this.getIconForAction(action.icon);
+        icon.innerHTML = this.getIconForAction(action.icon || 'default');
 
         // Create content
         const content = document.createElement('div');
@@ -700,8 +759,9 @@ class OverlayUI {
         // Add click handler
         button.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log(`🎯 Button clicked for action: ${action.id}`);
-            this.executeAction(action.id);
+            const actionId = e.currentTarget.getAttribute('data-action-id');
+            console.log(`🎯 Button clicked for action: ${actionId}`);
+            this.executeAction(actionId);
         });
 
         // Add keyboard handler
@@ -768,12 +828,29 @@ class OverlayUI {
     async executeAction(actionId) {
         try {
             console.log(`🎯 Executing agentic action: ${actionId}`);
+            console.log(`Available actions:`, this.actions);
+            
+            if (!actionId) {
+                console.error("No action ID provided");
+                return;
+            }
+            
+            // Verify that this action exists in our current actions
+            const actionExists = this.actions.some(a => a.id === actionId);
+            console.log(`Action ${actionId} exists in current actions: ${actionExists}`);
+            
+            if (!actionExists) {
+                console.warn("Action ID not found in current actions, will try to execute anyway");
+            }
             
             // Show task sequence for agentic execution
             this.showAgenticTaskSequence(actionId);
             
             // Execute agentic action via IPC
+            console.log(`Sending execute-agentic-action to main process with ID: ${actionId}`);
             const result = await ipcRenderer.invoke('execute-agentic-action', actionId);
+            
+            console.log(`Received result for action ${actionId}:`, result);
             
             if (result && result.type === 'success') {
                 console.log(`✅ Agentic action completed: ${actionId}`);
@@ -1311,17 +1388,15 @@ class OverlayUI {
         this.isExpanded = true;
         this.panel.classList.remove('hidden');
         this.indicator.classList.add('active');
-        this.indicator.classList.add('panel-expanded'); // Hide the eye when expanded
+        // Removed panel-expanded class - eye stays visible always
         clearTimeout(this.hoverTimeout);
         
         // Focus the panel for keyboard navigation
         this.panel.setAttribute('aria-expanded', 'true');
         this.panel.focus();
         
-        // Show loading state when panel first opens (if no actions yet)
-        if (this.actions.length === 0) {
-            this.showLoadingState();
-        }
+        // Check if we have screenshots first before showing loading
+        this.checkScreenshotsBeforeLoading();
     }
     
     collapsePanel() {
@@ -1330,7 +1405,7 @@ class OverlayUI {
         this.isExpanded = false;
         this.panel.classList.add('hidden');
         this.indicator.classList.remove('active');
-        this.indicator.classList.remove('panel-expanded'); // Show the eye when collapsed
+        // Removed panel-expanded class removal - eye stays visible always
         
         // Update ARIA attributes
         this.panel.setAttribute('aria-expanded', 'false');

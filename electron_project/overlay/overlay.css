@@ -293,14 +293,7 @@ body {
     background: radial-gradient(ellipse, var(--primary-pressed) 0%, var(--primary-pressed) 100%);
 }
 
-/* Hide indicator when panel is expanded */
-.vipr-indicator.panel-expanded {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    transform: scale(0.8) !important;
-    pointer-events: none !important;
-    transition: all 0.2s ease !important;
-}
+/* Keep indicator always visible - remove hiding behavior */
 
 .indicator-icon {
     width: 6px;
@@ -341,11 +334,11 @@ body {
     min-width: 400px;
     max-width: 50vw;
     max-height: 80vh;
-    background: rgba(30, 34, 37, 0.98);
-    backdrop-filter: saturate(180%) blur(30px);
-    -webkit-backdrop-filter: saturate(180%) blur(30px);
+    background: var(--surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    position: relative;
+    z-index: 999999;
     margin-top: 12px;
     overflow: hidden;
     opacity: 0;
@@ -829,7 +822,7 @@ kbd {
     }
 }
 
-.action-button {
+.action-button, .action-btn {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -851,6 +844,10 @@ kbd {
     width: 100%;
     justify-content: flex-start;
     text-align: left;
+    
+    /* Ensure proper visibility */
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .action-button:hover {
