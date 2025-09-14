@@ -213,15 +213,33 @@ app.on('window-all-closed', () => {
 });
 
 // Clean up gesture detector on quit
-app.on('before-quit', () => {
-  if (gestureProcess) {
-    gestureProcess.stdin.write(JSON.stringify({action: 'quit'}) + '\n');
-    gestureProcess.kill();
-  }
+app.on('before-quit', async (event) => {
+  console.log('🔄 App is quitting, cleaning up...');
   
-  // Clean up overlay service
-  if (overlayService) {
-    overlayService.cleanup();
+  // Prevent immediate quit to allow async cleanup
+  event.preventDefault();
+  
+  try {
+    // Unregister all global shortcuts
+    globalShortcut.unregisterAll();
+    
+    // Stop gesture detection
+    if (isGestureMode) {
+      stopGestureDetection();
+    }
+    
+    // Clean up overlay service with session cleanup
+    if (overlayService) {
+      await overlayService.cleanup();
+      console.log('✅ Overlay service cleanup completed');
+    }
+    
+    console.log('✅ All cleanup completed, quitting app');
+  } catch (error) {
+    console.error('❌ Error during app cleanup:', error);
+  } finally {
+    // Force quit after cleanup
+    app.exit(0);
   }
 });
 
@@ -714,7 +732,7 @@ function startPythonGestureDetector(scriptPath) {
   }
 }
 
-function handleGestureMessage(message) {
+async function handleGestureMessage(message) {
   switch (message.type) {
     case 'started':
       console.log('Global gesture detection active');
@@ -723,7 +741,12 @@ function handleGestureMessage(message) {
     case 'gesture_detected':
       if (isGestureMode) {
         console.log('Global circular gesture detected!');
-        captureScreenshot();
+        console.log('Capturing screenshot...');
+        
+        // Trigger overlay service
+        if (overlayService) {
+          await overlayService.handleCircleGesture();
+        }
       }
       break;
       

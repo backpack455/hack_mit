@@ -1,5 +1,7 @@
 const { ipcMain, globalShortcut, screen, desktopCapturer, BrowserWindow } = require('electron');
 const path = require('path');
+const fs = require('fs').promises;
+const ScreenshotProcessingService = require('./screenshotProcessingService');
 
 class OverlayService {
   constructor() {
@@ -10,6 +12,8 @@ class OverlayService {
     this.gestureListener = null;
     this.dismissTimeout = null;
     this.allowClose = false;
+    this.screenshotProcessor = new ScreenshotProcessingService();
+    this.currentSessionId = null;
   }
 
   /**
@@ -18,6 +22,14 @@ class OverlayService {
   async initialize() {
     try {
       console.log('🎯 Initializing VIPR Overlay Service...');
+      
+      // Initialize screenshot processing service
+      await this.screenshotProcessor.initialize();
+      console.log('✅ Screenshot processing service initialized');
+      
+      // Create new session
+      this.currentSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('📝 Created session:', this.currentSessionId);
       
       // Register global shortcuts for circle gesture simulation
       this.registerGlobalShortcuts();
@@ -97,25 +109,57 @@ class OverlayService {
       }
       
       console.log('📸 Capturing screenshot...');
+      console.log('🔍 DEBUG: About to capture screenshot');
       
       // Show brief capture indicator
       this.showCaptureIndicator();
       
       // Capture screenshot
       const screenshot = await this.captureScreenshot();
+      console.log('🔍 DEBUG: Screenshot result:', screenshot ? 'SUCCESS' : 'FAILED');
       
       if (screenshot) {
-        console.log('✅ Screenshot captured, adding to queue...');
-        // Add to context queue
-        this.addToScreenshotQueue(screenshot);
+        console.log('✅ Screenshot captured, processing with AI...');
+        console.log('🔍 DEBUG: Starting screenshot processing pipeline');
         
-        // Generate mock actions (not connected to real automation yet)
-        const actions = this.generateMockActions(screenshot);
-        console.log('🎯 Generated actions:', actions.length);
+        // Save screenshot to main screenshots folder for processing
+        const screenshotDir = path.join(__dirname, '..', 'screenshots');
+        await fs.mkdir(screenshotDir, { recursive: true });
         
-        // Show overlay with actions
-        console.log('🎨 Attempting to show overlay...');
-        await this.showOverlay(actions);
+        const screenshotPath = path.join(screenshotDir, `screenshot_${screenshot.id}.png`);
+        const base64Data = screenshot.dataURL.replace(/^data:image\/png;base64,/, '');
+        await fs.writeFile(screenshotPath, base64Data, 'base64');
+        
+        // Process screenshot with AI, OCR, and URL extraction
+        console.log('🔄 Processing screenshot with session ID:', this.currentSessionId);
+        const processingResult = await this.screenshotProcessor.processScreenshot(screenshotPath, this.currentSessionId);
+        
+        console.log('📊 Processing result:', processingResult);
+        if (processingResult.success) {
+          console.log('✅ Screenshot processed successfully');
+          console.log('📄 Context file created at:', processingResult.contextFile);
+          
+          // Update screenshot with processing results
+          screenshot.processingResult = processingResult.data;
+          screenshot.contextFile = processingResult.contextFile;
+          
+          // Add to context queue
+          this.addToScreenshotQueue(screenshot);
+          
+          // Generate actions based on processing results
+          const actions = this.generateActionsFromProcessing(processingResult.data);
+          console.log('🎯 Generated AI-powered actions:', actions.length);
+          
+          // Show overlay with actions
+          console.log('🎨 Attempting to show overlay...');
+          await this.showOverlay(actions);
+        } else {
+          console.error('❌ Failed to process screenshot:', processingResult.error);
+          // Fallback to basic screenshot handling
+          this.addToScreenshotQueue(screenshot);
+          const actions = this.generateMockActions(screenshot);
+          await this.showOverlay(actions);
+        }
       } else {
         console.error('❌ Failed to capture screenshot');
       }
@@ -211,7 +255,89 @@ class OverlayService {
   }
 
   /**
-   * Generate mock actions for demonstration (not connected to real automation)
+   * Generate actions based on AI processing results
+   */
+  generateActionsFromProcessing(processingData) {
+    const actions = [];
+    
+    // Always include view context action
+    actions.push({
+      id: 'view_context',
+      title: 'View Full Context',
+      description: `AI analysis, OCR text, and ${processingData.urls.count} URLs processed`,
+      icon: 'context',
+      confidence: 1.0,
+      data: {
+        contextFile: processingData.contextFile,
+        hasAI: processingData.visualDescription.success,
+        hasOCR: processingData.ocrText.success,
+        urlCount: processingData.urls.count
+      }
+    });
+    
+    // Add OCR text action if text was extracted
+    if (processingData.ocrText.success && processingData.ocrText.extractedText.trim()) {
+      actions.push({
+        id: 'copy_text',
+        title: 'Copy Extracted Text',
+        description: `Copy ${processingData.ocrText.extractedText.length} characters of OCR text`,
+        icon: 'text',
+        confidence: 0.9,
+        data: {
+          text: processingData.ocrText.extractedText
+        }
+      });
+    }
+    
+    // Add URL actions if URLs were found
+    if (processingData.urls.found.length > 0) {
+      actions.push({
+        id: 'open_urls',
+        title: `Open ${processingData.urls.found.length} URLs`,
+        description: `Found ${processingData.urls.processed.length} processed URLs with content`,
+        icon: 'link',
+        confidence: 0.8,
+        data: {
+          urls: processingData.urls.found,
+          processedUrls: processingData.urls.processed
+        }
+      });
+    }
+    
+    // Add AI description action if available
+    if (processingData.visualDescription.success) {
+      actions.push({
+        id: 'view_ai_description',
+        title: 'View AI Description',
+        description: 'See AI-generated visual analysis',
+        icon: 'analyze',
+        confidence: 0.85,
+        data: {
+          description: processingData.visualDescription.description
+        }
+      });
+    }
+    
+    // Add session context action
+    actions.push({
+      id: 'generate_session_context',
+      title: 'Generate Session Summary',
+      description: 'Create comprehensive session context file',
+      icon: 'summary',
+      confidence: 0.7,
+      data: {
+        sessionId: processingData.sessionId
+      }
+    });
+    
+    // Return top 4 actions sorted by confidence
+    return actions
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 4);
+  }
+  
+  /**
+   * Generate mock actions for demonstration (fallback)
    */
   generateMockActions(screenshot) {
     const mockActions = [
@@ -235,20 +361,10 @@ class OverlayService {
         description: 'Generate a summary of the visible content',
         icon: 'summary',
         confidence: 0.7
-      },
-      {
-        id: 'find_links',
-        title: 'Find Links',
-        description: 'Extract and organize any links found',
-        icon: 'link',
-        confidence: 0.6
       }
     ];
 
-    // Return top 3 actions sorted by confidence
-    return mockActions
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 3);
+    return mockActions;
   }
 
   /**
@@ -392,16 +508,13 @@ class OverlayService {
    */
   setupIPCHandlers() {
     // Handle action execution
-    ipcMain.handle('execute-overlay-action', async (event, actionId) => {
+    ipcMain.handle('execute-overlay-action', async (event, actionId, actionData) => {
       console.log(`🎯 Executing action: ${actionId}`);
       
-      // DON'T hide overlay - let it stay open for task sequence
-      // this.hideOverlay(); // REMOVED - overlay should stay open
+      // Execute the action with enhanced processing
+      const result = await this.executeAction(actionId, actionData);
       
-      // Mock action execution (not connected to real automation yet)
-      await this.executeAction(actionId);
-      
-      return { success: true, actionId };
+      return result;
     });
 
     // Handle overlay dismissal
@@ -423,9 +536,52 @@ class OverlayService {
     ipcMain.handle('get-actions-for-screenshot', (event, index) => {
       if (index >= 0 && index < this.screenshotQueue.length) {
         const screenshot = this.screenshotQueue[index];
-        return this.generateMockActions(screenshot);
+        // Use AI-powered actions if processing results are available
+        if (screenshot.processingResult) {
+          return this.generateActionsFromProcessing(screenshot.processingResult);
+        } else {
+          return this.generateMockActions(screenshot);
+        }
       }
       return null;
+    });
+    
+    // Handle session context generation
+    ipcMain.handle('generate-session-context', async (event, sessionId) => {
+      try {
+        const contextPath = await this.screenshotProcessor.generateSessionContext(sessionId || this.currentSessionId);
+        return { success: true, contextPath };
+      } catch (error) {
+        console.error('Error generating session context:', error);
+        return { success: false, error: error.message };
+      }
+    });
+    
+    // Handle context file viewing
+    ipcMain.handle('view-context-file', async (event, filePath) => {
+      try {
+        const content = await fs.readFile(filePath, 'utf8');
+        return { success: true, content };
+      } catch (error) {
+        console.error('Error reading context file:', error);
+        return { success: false, error: error.message };
+      }
+    });
+    
+    // Handle session cleanup
+    ipcMain.handle('cleanup-session', async (event, sessionId) => {
+      try {
+        await this.screenshotProcessor.cleanupSession(sessionId || this.currentSessionId);
+        return { success: true };
+      } catch (error) {
+        console.error('Error cleaning up session:', error);
+        return { success: false, error: error.message };
+      }
+    });
+    
+    // Handle service status requests
+    ipcMain.handle('get-processing-status', () => {
+      return this.screenshotProcessor.getStatus();
     });
 
     // Handle hover events to reset timeout
@@ -437,33 +593,87 @@ class OverlayService {
   }
 
   /**
-   * Mock action execution (placeholder for future integration)
+   * Execute screenshot processing actions
    */
-  async executeAction(actionId) {
-    console.log(`🔄 Mock executing action: ${actionId}`);
+  async executeAction(actionId, actionData) {
+    console.log(`🔄 Executing action: ${actionId}`);
     
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log(`✅ Mock action completed: ${actionId}`);
+    try {
+      switch (actionId) {
+        case 'view_context':
+          if (actionData && actionData.contextFile) {
+            const content = await fs.readFile(actionData.contextFile, 'utf8');
+            return { success: true, actionId, data: { content, filePath: actionData.contextFile } };
+          }
+          break;
+          
+        case 'copy_text':
+          if (actionData && actionData.text) {
+            // In a real implementation, this would copy to clipboard
+            console.log('📋 Text copied to clipboard (simulated)');
+            return { success: true, actionId, data: { text: actionData.text, copied: true } };
+          }
+          break;
+          
+        case 'open_urls':
+          if (actionData && actionData.urls) {
+            console.log(`🔗 Opening ${actionData.urls.length} URLs (simulated)`);
+            return { success: true, actionId, data: { urls: actionData.urls, opened: true } };
+          }
+          break;
+          
+        case 'view_ai_description':
+          if (actionData && actionData.description) {
+            return { success: true, actionId, data: { description: actionData.description } };
+          }
+          break;
+          
+        case 'generate_session_context':
+          if (actionData && actionData.sessionId) {
+            const contextPath = await this.screenshotProcessor.generateSessionContext(actionData.sessionId);
+            return { success: true, actionId, data: { contextPath } };
+          }
+          break;
+          
+        default:
+          // Fallback to mock execution for unknown actions
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return { success: true, actionId, data: { message: 'Action executed (mock)' } };
+      }
+      
+      return { success: false, actionId, error: 'Invalid action data' };
+      
+    } catch (error) {
+      console.error(`❌ Error executing action ${actionId}:`, error);
+      return { success: false, actionId, error: error.message };
+    }
   }
 
   /**
    * Cleanup resources
    */
-  cleanup() {
-    // Unregister global shortcuts
-    globalShortcut.unregisterAll();
-    
-    // Hide overlay
-    this.hideOverlay();
-    
-    // Clear timeouts
-    if (this.dismissTimeout) {
-      clearTimeout(this.dismissTimeout);
+  async cleanup() {
+    try {
+      // Cleanup screenshot processor and session data
+      if (this.screenshotProcessor) {
+        await this.screenshotProcessor.cleanupAll();
+      }
+      
+      // Unregister global shortcuts
+      globalShortcut.unregisterAll();
+      
+      // Hide overlay
+      this.hideOverlay();
+      
+      // Clear timeouts
+      if (this.dismissTimeout) {
+        clearTimeout(this.dismissTimeout);
+      }
+      
+      console.log('🧹 Overlay service cleaned up');
+    } catch (error) {
+      console.error('❌ Error during cleanup:', error);
     }
-    
-    console.log('🧹 Overlay service cleaned up');
   }
 }
 
