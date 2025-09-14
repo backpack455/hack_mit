@@ -600,7 +600,12 @@ class OverlayService {
     // Set up IPC communication
     this.setupOverlayIPC();
     
-    console.log('✅ Overlay window created (hidden)');
+    // Show the overlay window immediately so the VIPR button is visible
+    this.overlayWindow.showInactive();
+    this.isOverlayVisible = true;
+    
+    console.log('✅ Overlay window created and shown');
+    console.log('👁️ VIPR button should now be visible on screen');
     return this.overlayWindow;
   }
   
