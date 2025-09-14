@@ -68,27 +68,57 @@ function updateTrayTitle() {
 function createTray() {
   // Create custom tray icon using canvas
 function createTrayIcon(gestureEnabled = false) {
-  // Draw an eye-like oval with a radial gradient and an iris line
   const { createCanvas } = require('canvas');
-  const canvas = createCanvas(20, 12);
-  const ctx = canvas.getContext('2d');
-
-  // Background oval (slightly taller than wide)
-  const grad = ctx.createRadialGradient(10, 6, 0, 10, 6, 6);
-  grad.addColorStop(0, gestureEnabled ? '#69D39B' : '#E0B465');
-  grad.addColorStop(1, gestureEnabled ? '#49D29C' : '#CFA052');
-  ctx.fillStyle = grad;
+  
+  const displaySize = 16;  // Display size in menu bar
+  const scale = 1.5;  // Scale factor for retina/HD display
+  const size = displaySize * scale;  // Render at higher resolution
+  
+  const canvas = createCanvas(size, size);
+  const ctx = canvas.getContext('2d', { antialias: 'subpixel' });
+  
+  // Enable high-quality anti-aliasing
+  ctx.antialias = 'subpixel';
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
+  // Clear canvas with transparent background
+  ctx.clearRect(0, 0, size, size);
+  
+  // Calculate proportions based on the original 60x35 eye
+  const eyeRatio = 60 / 35;  // Original width/height ratio
+  const eyeWidth = size * 0.9;  // Slightly smaller than canvas
+  const eyeHeight = eyeWidth / eyeRatio;  // Maintain original proportions
+  
+  // Draw the eye shape (horizontal ellipse) with crisp edges
   ctx.beginPath();
-  ctx.ellipse(10, 6, 8, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Central slit (iris)
-  ctx.fillStyle = '#0B0C10';
+  ctx.ellipse(
+    size/2, 
+    size/2, 
+    eyeWidth/2, 
+    eyeHeight/2, 
+    0, 0, Math.PI * 2
+  );
+  ctx.strokeStyle = '#FFFFFF';  // White stroke
+  ctx.lineWidth = 1.5 * scale;  // Scale line width
+  ctx.stroke();
+  
+  // Draw the iris (vertical oval in the center)
+  // Original iris was 6x25 in a 60x35 container
+  const irisWidth = (6 / 60) * eyeWidth;  // Scale proportionally
+  const irisHeight = (25 / 35) * eyeHeight;  // Scale proportionally
+  
   ctx.beginPath();
-  ctx.ellipse(10, 6, 1.2, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    size/2, 
+    size/2, 
+    irisWidth/2,  
+    irisHeight/2, 
+    0, 0, Math.PI * 2
+  );
+  ctx.fillStyle = '#FFFFFF';  // White fill
   ctx.fill();
-
-  // Transparent surrounding
+  
   return nativeImage.createFromBuffer(canvas.toBuffer());
 }
   
@@ -169,6 +199,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('set-mode', (event, mode) => {
     if (['study', 'work', 'research'].includes(mode)) {
       currentMode = mode;
+      // Update tray menu to sync ribbon with new mode
+      updateTrayMenu();
       // Notify all windows of the mode change
       BrowserWindow.getAllWindows().forEach(window => {
         window.webContents.send('mode-changed', currentMode);
@@ -326,6 +358,10 @@ function setupGlobalShortcuts() {
 // REPLACE: rebuild the tray menu with new structure
 function updateTrayMenu() {
   if (!tray) return;
+
+  // Check if the main window is visible (not hidden)
+  const isWindowVisible = mainWindow && mainWindow.isVisible();
+
   const template = [
     {
       label: 'Mode',
@@ -421,11 +457,60 @@ function updateTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: 'Show App Window',
+      label: isWindowVisible ? 'Hide App' : 'Show App',
+      click: () => {
+        if (isWindowVisible) {
+          // Hide the app window and dock icon
+          if (mainWindow) {
+            mainWindow.hide();
+          }
+          // Hide dock icon on macOS
+          if (process.platform === 'darwin') {
+            app.dock.hide();
+          }
+          // Hide overlay if visible
+          if (overlayService && overlayService.isOverlayVisible) {
+            overlayService.hideOverlay();
+          }
+        } else {
+          // Show the app window
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) {
+              mainWindow.restore();
+            }
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.moveTop();
+            // On macOS, show the dock icon when opening the window
+            if (process.platform === 'darwin') {
+              app.dock.show();
+            }
+          } else {
+            // If window doesn't exist, create it
+            createWindow();
+          }
+        }
+        // Update the menu to reflect the new state
+        setTimeout(() => updateTrayMenu(), 100);
+      },
+    },
+    {
+      label: 'Show Session History',
       click: () => {
         if (mainWindow) {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+          }
           mainWindow.show();
           mainWindow.focus();
+          mainWindow.moveTop();
+          // On macOS, show the dock icon when opening the window
+          if (process.platform === 'darwin') {
+            app.dock.show();
+          }
+        } else {
+          // If window doesn't exist, create it
+          createWindow();
         }
       },
     },
@@ -446,7 +531,7 @@ function updateTrayMenu() {
     },
   ];
   const contextMenu = Menu.buildFromTemplate(template);
-  
+
   tray.setContextMenu(contextMenu);
 }
 
