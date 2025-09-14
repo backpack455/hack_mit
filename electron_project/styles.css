@@ -37,8 +37,8 @@
     /* Enhanced shadows for dark theme */
     --shadow: 0 2px 8px 0 rgb(0 0 0 / 0.3), 0 1px 3px -1px rgb(0 0 0 / 0.2);
     --shadow-lg: 0 10px 25px -5px rgb(0 0 0 / 0.4), 0 4px 10px -4px rgb(0 0 0 / 0.3);
-    --border-radius: 12px;
-    --border-radius-sm: 8px;
+    --border-radius: 18px;
+    --border-radius-sm: 14px;
     --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     --spacing-xs: 0.5rem;
     --spacing-sm: 1rem;
@@ -62,6 +62,7 @@ body {
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    padding-top: 56px; /* Account for fixed navbar */
 }
 
 /* Container */
@@ -74,22 +75,24 @@ body {
     flex-direction: column;
 }
 
-/* Home page container - center everything vertically */
+/* Home page container - properly spaced below navbar */
 .home-container {
     max-width: 900px;
     margin: 0 auto;
-    padding: 0 2rem;
-    height: calc(100vh - 60px); /* Account for navbar height */
+    padding: 2rem;
+    margin-top: 56px; /* Account for fixed navbar height */
+    min-height: calc(100vh - 56px);
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
-    transform: translateY(100px);
+    padding-top: 4rem;
 }
 
-/* Adjust header spacing for better centering */
+/* Header spacing */
 .home-container header {
     margin-bottom: var(--spacing-xl);
+    text-align: center;
 }
 
 /* Header */
@@ -167,7 +170,7 @@ header h1 {
 }
 
 .subtitle {
-    font-size: 1rem;
+    font-size: 1.125rem;
     opacity: 0.8;
     font-weight: 400;
     color: var(--text-muted);
@@ -239,7 +242,7 @@ main {
 
 .mode-card h3 {
     font-family: var(--font-display);
-    font-size: 1.25rem;
+    font-size: 1.375rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: var(--spacing-xs);
@@ -247,7 +250,7 @@ main {
 }
 
 .mode-card p {
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: var(--text-muted);
     margin: 0;
     line-height: 1.5;
@@ -283,7 +286,7 @@ main {
 
 .interface-header h2 {
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: 1.625rem;
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
@@ -316,7 +319,6 @@ main {
     color: var(--text-primary);
     margin-bottom: var(--spacing-md);
     letter-spacing: 0.01em;
-    font-size: 0.85rem;
     opacity: 0.9;
 }
 
@@ -377,7 +379,7 @@ main {
     border-radius: var(--border-radius-sm);
     font-family: var(--font-primary);
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     cursor: pointer;
     transition: var(--transition);
     display: flex;
@@ -415,7 +417,7 @@ main {
     border-radius: var(--border-radius-sm);
     font-family: var(--font-primary);
     font-weight: 500;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     cursor: pointer;
     transition: var(--transition);
     display: flex;
@@ -448,7 +450,7 @@ main {
     border-radius: var(--border-radius-sm);
     font-family: var(--font-primary);
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     cursor: pointer;
     transition: var(--transition);
     display: flex;
@@ -674,12 +676,11 @@ kbd {
 }
 
 .live-transcript h4 {
-    font-size: 1rem;
+    font-size: 1.125rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: var(--spacing-md);
     letter-spacing: 0.01em;
-    font-size: 0.85rem;
     opacity: 0.9;
 }
 
@@ -690,7 +691,7 @@ kbd {
     min-height: 120px;
     border: 1px solid var(--borders);
     font-family: var(--font-mono);
-    font-size: 0.9rem;
+    font-size: 1rem;
     line-height: 1.6;
 }
 
@@ -755,6 +756,13 @@ kbd {
   justify-content: space-between;
   padding: 0.5rem 1.25rem;
   height: 56px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  background: rgba(30, 34, 37, 0.95);
 }
 
 .nav-left, .nav-right {
