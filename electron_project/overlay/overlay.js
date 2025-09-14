@@ -451,17 +451,8 @@ class OverlayUI {
             this.isVisible = false;
             this.overlayContainer.classList.add('hidden');
         });
-        
-        // Handle action execution
-        this.actionsContainer.addEventListener('click', (e) => {
-            const actionBtn = e.target.closest('.action-btn');
-            if (actionBtn) {
-                const actionId = actionBtn.dataset.actionId;
-                if (actionId) {
-                    ipcRenderer.send('execute-overlay-action', actionId);
-                }
-            }
-        });
+    // Note: Button click handlers are attached per-button in createActionButton,
+    // and they invoke 'execute-agentic-action' to ensure routing to Dedalus.
         
         // Handle close button
         if (this.closeBtn) {

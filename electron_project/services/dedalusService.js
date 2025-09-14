@@ -396,30 +396,36 @@ Please complete this task and provide a comprehensive response.`;
     }
 
     parseAndFormatContent(content) {
-        // Format links as clickable hyperlinks
-        const linkRegex = /(https?:\/\/[^\s]+)/g;
-        let formatted = content.replace(linkRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    let formatted = content;
 
-        // Format markdown-style headers
+    // 1) Convert fenced code blocks first
+    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    // 2) Convert inline code
+    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // 3) Convert markdown links [text](url)
+    formatted = formatted.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
+
+    // 4) Convert raw URLs to links, avoiding those already inside href attributes
+    // Use negative lookbehind to skip matches like href="https://..."
+    formatted = formatted.replace(/(?<!href=")https?:\/\/[^\s<)]+/g, '<a href="$&" target="_blank" rel="noopener noreferrer">$&<\/a>');
+
+    // 5) Format markdown-style headers
         formatted = formatted.replace(/^### (.*$)/gim, '<h3>$1</h3>');
         formatted = formatted.replace(/^## (.*$)/gim, '<h2>$1</h2>');
         formatted = formatted.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
-        // Format bullet points
+    // 6) Format bullet points
         formatted = formatted.replace(/^\* (.*$)/gim, '<li>$1</li>');
         formatted = formatted.replace(/^- (.*$)/gim, '<li>$1</li>');
 
         // Wrap consecutive list items in ul tags
         formatted = formatted.replace(/(<li>.*<\/li>\s*)+/g, '<ul>$&</ul>');
 
-        // Format bold text
+    // 7) Format bold text
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-        // Format code blocks
-        formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-        // Convert line breaks to HTML
+    // 8) Convert line breaks to HTML
         formatted = formatted.replace(/\n/g, '<br>');
 
         return formatted;

@@ -3,6 +3,10 @@ const AgentMatchingService = require('./agentMatchingService');
 const DedalusService = require('./dedalusService');
 const fs = require('fs').promises;
 
+// Temporary hardcoded context fallback until full pipeline wiring is complete
+const HARDCODED_CONTEXT_FALLBACK = 
+    '/Users/omjoshi/Documents/370/Github/hack_mit/electron_project/temp/contexts/context_session_1757838613697_k4xaejhb0_2025-09-14T08-30-19-460Z.txt';
+
 class AgenticPipelineService {
     constructor() {
         this.contextAnalyzer = new ContextAnalysisService();
@@ -169,13 +173,19 @@ class AgenticPipelineService {
                 
                 this.currentRecommendations = {
                     overlayActions: actions,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    contextFile: this.currentRecommendations?.contextFile || null
                 };
             }
             
             // Validate after potential generation
-            if (!this.currentRecommendations || !this.currentRecommendations.overlayActions) {
+            if (!this.currentRecommendations || !Array.isArray(this.currentRecommendations.overlayActions)) {
                 throw new Error('Failed to generate recommendations');
+            }
+            if (this.currentRecommendations.overlayActions.length === 0) {
+                console.log('⚠️ No overlay actions available after generation, using fallback actions');
+                const fallbacks = this.getFallbackActions();
+                this.currentRecommendations.overlayActions = fallbacks;
             }
             
             // Log available actions
@@ -191,39 +201,72 @@ class AgenticPipelineService {
             const action = this.currentRecommendations.overlayActions.find(a => a.id === actionId);
             console.log('🔍 Looking for action:', actionId);
             console.log('🔍 Available actions:', this.currentRecommendations.overlayActions);
-            
-            if (!action) {
-                console.error('❌ Action not found. Available actions:', 
-                    this.currentRecommendations.overlayActions.map(a => ({
-                        id: a.id,
-                        title: a.title
-                    }))
-                );
-                throw new Error(`Action ${actionId} not found in current recommendations`);
-            }
-            
-            console.log('✅ Found matching action:', action);
 
-            console.log(`🚀 Executing agentic action: ${action.title}`);
+            // If exact match isn't found, pick the closest by similarityScore (fallback to confidence)
+            let selectedAction = action;
+            if (!selectedAction) {
+                const scoreOf = (x) => {
+                    if (!x) return 0;
+                    const simNum = Number(x.similarityScore);
+                    const confNum = Number(x.confidence);
+                    const sim = Number.isFinite(simNum) ? simNum : undefined;
+                    const conf = Number.isFinite(confNum) ? confNum : undefined;
+                    return (sim != null ? sim : (conf != null ? conf : 0));
+                };
+
+                const sorted = [...this.currentRecommendations.overlayActions]
+                    .sort((a, b) => scoreOf(b) - scoreOf(a));
+                const topThree = sorted.slice(0, 3);
+
+                console.log('🎯 No exact match; using closest recommendation. Top 3 candidates:');
+                topThree.forEach((a, i) => {
+                    console.log(`${i + 1}. ${a.title} (id: ${a.id}) — score: ${scoreOf(a)}`);
+                });
+
+                selectedAction = topThree[0];
+                if (!selectedAction) {
+                    throw new Error('No recommendations available to execute');
+                }
+            }
+
+            console.log('✅ Selected action for execution:', {
+                id: selectedAction.id,
+                title: selectedAction.title,
+                similarityScore: selectedAction.similarityScore,
+                confidence: selectedAction.confidence
+            });
+
+            console.log(`🚀 Executing agentic action: ${selectedAction.title}`);
             
             // Get context content (handle fallback case)
             let contextContent = '';
-            if (this.currentRecommendations.contextFile) {
-                contextContent = await fs.readFile(this.currentRecommendations.contextFile, 'utf8');
-            } else {
-                contextContent = 'No specific context file available - using current session context';
+            try {
+                const candidatePath = this.currentRecommendations.contextFile || HARDCODED_CONTEXT_FALLBACK;
+                if (candidatePath) {
+                    contextContent = await fs.readFile(candidatePath, 'utf8');
+                    if (!this.currentRecommendations.contextFile) {
+                        // Plug fallback path into current recommendations for consistency
+                        this.currentRecommendations.contextFile = candidatePath;
+                        console.log('🧩 Using fallback context file:', candidatePath);
+                    }
+                } else {
+                    contextContent = 'No specific context file available - using current session context';
+                }
+            } catch (readErr) {
+                console.warn('⚠️ Failed to read context file, proceeding with minimal context. Error:', readErr.message);
+                contextContent = 'Insufficient context file available; proceed based on visible UI and recent screenshots.';
             }
             
             // Execute the task using Dedalus with similarity data
             const similarityData = {
-                similarityScore: action.similarityScore,
-                contextRelevance: action.contextRelevance,
-                agentSimilarities: action.agentSimilarities
+                similarityScore: selectedAction.similarityScore,
+                contextRelevance: selectedAction.contextRelevance,
+                agentSimilarities: selectedAction.agentSimilarities
             };
             
             const result = await this.dedalusService.executeAgenticTask(
-                action.taskData,
-                action.mcpAgent,
+                selectedAction.taskData,
+                selectedAction.mcpAgent,
                 contextContent,
                 similarityData
             );
@@ -232,13 +275,13 @@ class AgenticPipelineService {
             const formattedResult = this.dedalusService.formatResult(result);
             
             // Store the result
-            this.executionResults.set(actionId, {
-                action,
+            this.executionResults.set(selectedAction.id || actionId, {
+                action: selectedAction,
                 result: formattedResult,
                 timestamp: new Date().toISOString()
             });
             
-            console.log(`✅ Agentic action completed: ${action.title}`);
+            console.log(`✅ Agentic action completed: ${selectedAction.title}`);
             return formattedResult;
             
         } catch (error) {

@@ -799,6 +799,22 @@ class OverlayService {
       return result;
     });
 
+    // Handle agentic action execution (routes to AgenticPipeline -> DedalusService)
+    try {
+      ipcMain.handle('execute-agentic-action', async (event, actionId) => {
+        console.log(`🤖 Executing agentic action via pipeline: ${actionId}`);
+        try {
+          const result = await this.agenticPipeline.executeAgenticAction(actionId);
+          return result;
+        } catch (err) {
+          console.error('❌ Error in agentic pipeline execution:', err);
+          return { type: 'error', content: `Failed to execute agentic action: ${err.message}` };
+        }
+      });
+    } catch (e) {
+      console.warn('execute-agentic-action handler registration issue:', e.message);
+    }
+
     // Handle overlay dismissal
     ipcMain.handle('dismiss-overlay', () => {
       this.hideOverlay();
@@ -919,9 +935,21 @@ class OverlayService {
           break;
           
         default:
-          // Fallback to mock execution for unknown actions
-          await new Promise(resolve => setTimeout(resolve, 500));
-          return { success: true, actionId, data: { message: 'Action executed (mock)' } };
+          // If it's not a known local action, try routing through agentic pipeline (Dedalus)
+          try {
+            console.log('🔁 Routing unknown action to agentic pipeline:', actionId);
+            const res = await this.agenticPipeline.executeAgenticAction(actionId);
+            // Normalize response shape to the renderer expectations
+            if (res && (res.type === 'success' || res.type === 'error')) {
+              return res;
+            }
+            // Wrap any non-standard result into success format
+            return { success: true, actionId, data: { message: 'Agentic action executed', result: res } };
+          } catch (e) {
+            console.warn('⚠️ Agentic routing failed, falling back to mock:', e.message);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return { success: true, actionId, data: { message: 'Action executed (mock)' } };
+          }
       }
       
       return { success: false, actionId, error: 'Invalid action data' };
