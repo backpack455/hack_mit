@@ -220,13 +220,15 @@ app.whenReady().then(async () => {
   createAppMenu();
   createWindow();
   createTray();
-  setupGlobalShortcuts();
   startGestureDetection();
   
-  // Initialize overlay service
+  // Initialize overlay service FIRST (it registers Cmd+Shift+O)
   if (overlayService) {
     await overlayService.initialize();
   }
+  
+  // Setup other global shortcuts AFTER overlay service
+  setupGlobalShortcuts();
 
   // On macOS, re-create window when dock icon is clicked
   app.on('activate', () => {
@@ -348,17 +350,10 @@ async function captureScreenshot() {
   }
 }
 
-// Global shortcuts setup
+// Global shortcuts setup - REMOVED ALL SHORTCUTS
+// Only the overlay service will handle Cmd+Shift+O
 function setupGlobalShortcuts() {
-  // Register global shortcut for screenshot
-  globalShortcut.register('CommandOrControl+Shift+S', () => {
-    captureScreenshot();
-  });
-  
-  // Register gesture mode toggle
-  globalShortcut.register('CommandOrControl+Shift+G', () => {
-    toggleGestureMode(!isGestureMode);
-  });
+  // All shortcuts removed - only overlay service handles Cmd+Shift+O
 }
 
 // REPLACE: rebuild the tray menu with new structure

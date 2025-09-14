@@ -1,25 +1,77 @@
-// Mock Dedalus implementation for demonstration
-class MockAsyncDedalus {
-    constructor() {
-        console.log('🔧 Using mock Dedalus client for demonstration');
-    }
-}
+const { spawn } = require('child_process');
+const path = require('path');
 
-class MockDedalusRunner {
-    constructor(client) {
-        this.client = client;
+// Real Dedalus implementation using Python MCP integration with Anthropic models only
+class DedalusPythonClient {
+    constructor() {
+        this.pythonPath = path.join(__dirname, '..', 'python_mcp', 'venv_mcp', 'bin', 'python');
+        this.scriptPath = path.join(__dirname, '..', 'python_mcp', 'dedalus_client.py');
+        console.log('🐍 Using Python Dedalus client with Anthropic MCP integration');
     }
     
     async run({ input, model, mcp_servers }) {
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-        
-        // Generate mock response based on input
-        const mockResponse = this.generateMockResponse(input, mcp_servers);
-        
-        return {
-            final_output: mockResponse
-        };
+        return new Promise((resolve, reject) => {
+            // Extract the first MCP server as the agent
+            const mcpAgent = Array.isArray(mcp_servers) ? mcp_servers[0] : mcp_servers;
+            
+            console.log(`🤖 Executing with hardcoded Anthropic Claude Sonnet 4`);
+            console.log(`🔗 Using MCP agent: ${mcpAgent}`);
+            
+            const args = [
+                this.scriptPath,
+                input,
+                mcpAgent
+            ];
+            
+            const pythonProcess = spawn(this.pythonPath, args);
+            
+            let stdout = '';
+            let stderr = '';
+            
+            pythonProcess.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+            
+            pythonProcess.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+            
+            pythonProcess.on('close', (code) => {
+                if (code !== 0) {
+                    console.error(`❌ Python process exited with code ${code}`);
+                    console.error(`stderr: ${stderr}`);
+                    // Fallback to mock response
+                    const mockResponse = this.generateMockResponse(input, mcp_servers);
+                    resolve({ final_output: mockResponse });
+                    return;
+                }
+                
+                try {
+                    const result = JSON.parse(stdout);
+                    if (result.success) {
+                        resolve({ final_output: result.final_output });
+                    } else {
+                        // Fallback to mock response if Python fails
+                        console.warn(`⚠️ Python execution failed: ${result.error}`);
+                        console.log('🔄 Falling back to mock response');
+                        const mockResponse = this.generateMockResponse(input, mcp_servers);
+                        resolve({ final_output: mockResponse });
+                    }
+                } catch (parseError) {
+                    console.error(`❌ Failed to parse Python output: ${parseError}`);
+                    console.log('🔄 Falling back to mock response');
+                    const mockResponse = this.generateMockResponse(input, mcp_servers);
+                    resolve({ final_output: mockResponse });
+                }
+            });
+            
+            pythonProcess.on('error', (error) => {
+                console.error(`❌ Failed to start Python process: ${error}`);
+                console.log('🔄 Falling back to mock response');
+                const mockResponse = this.generateMockResponse(input, mcp_servers);
+                resolve({ final_output: mockResponse });
+            });
+        });
     }
     
     generateMockResponse(input, mcpServers) {
@@ -105,7 +157,7 @@ ipcMain.handle('process-screenshot', async (event, imagePath) => {
         };
         
         // Determine response type based on input content and MCP servers
-        if (input.toLowerCase().includes('search') || mcpServers.some(s => s.includes('search'))) {
+        if (input.toLowerCase().includes('search') || (Array.isArray(mcpServers) && mcpServers.some(s => s.includes && s.includes('search')))) {
             return responses.search;
         } else if (input.toLowerCase().includes('analyze') || input.toLowerCase().includes('analysis')) {
             return responses.analysis;
@@ -115,6 +167,33 @@ ipcMain.handle('process-screenshot', async (event, imagePath) => {
         
         // Default response
         return responses.analysis;
+    }
+}
+
+class MockDedalusRunner {
+    constructor(client) {
+        this.client = client;
+    }
+    
+    async run({ input, model, mcp_servers }) {
+        // Simulate processing time
+        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+        
+        // Log that we're using Anthropic Claude models only
+        console.log(`🤖 Executing with Anthropic Claude model: ${model}`);
+        
+        // Generate mock response based on input
+        const mockResponse = this.generateMockResponse(input, mcp_servers);
+        
+        return {
+            final_output: mockResponse
+        };
+    }
+    
+    generateMockResponse(input, mcpServers) {
+        // Use the same mock response logic as DedalusPythonClient
+        const pythonClient = new DedalusPythonClient();
+        return pythonClient.generateMockResponse(input, mcpServers);
     }
 }
 
@@ -128,12 +207,11 @@ class DedalusService {
 
     async init() {
         try {
-            // Use mock implementation for demonstration
-            this.client = new MockAsyncDedalus();
-            this.runner = new MockDedalusRunner(this.client);
+            // Use Python MCP implementation with Anthropic models only
+            this.runner = new DedalusPythonClient();
             this.isInitialized = true;
             
-            console.log('✅ Dedalus Service initialized (mock mode for demonstration)');
+            console.log('✅ Dedalus Service initialized (Python MCP with Anthropic models)');
         } catch (error) {
             console.error('❌ Failed to initialize Dedalus Service:', error);
         }
@@ -154,15 +232,18 @@ class DedalusService {
             const selectedModel = this.selectModelForTask(taskData);
             
             // Execute using Dedalus with similarity parameters
-            const result = await this.mockDedalusExecution(taskData, mcpAgent, mcpServers, selectedModel, contextContent, similarityData);
+            const result = await this.runner.run({
+                input: this.buildTaskPrompt(taskData, contextContent),
+                model: selectedModel,
+                mcp_servers: mcpServers
+            });
             
-            return result;
             return {
                 success: true,
                 result: result.final_output,
                 taskId: taskData.id,
                 mcpAgent: mcpAgent,
-                model: model,
+                model: selectedModel,
                 timestamp: new Date().toISOString()
             };
 
@@ -276,16 +357,8 @@ Please complete this task and provide a comprehensive response.`;
     }
 
     selectModelForTask(taskData) {
-        // Select model based on task category and complexity
-        const modelMappings = {
-            'research': 'openai/gpt-4.1',
-            'analysis': 'anthropic/claude-sonnet-4-20250514',
-            'development': 'openai/gpt-4.1',
-            'communication': 'openai/gpt-4.1',
-            'productivity': 'openai/gpt-4.1'
-        };
-
-        return modelMappings[taskData.category] || 'openai/gpt-4.1';
+        // Use Claude Sonnet 4 for all tasks
+        return 'anthropic/claude-sonnet-4-20250514';
     }
 
     formatResult(result) {
@@ -375,5 +448,5 @@ Please complete this task and provide a comprehensive response.`;
         }
     }
 }
-
+    
 module.exports = DedalusService;

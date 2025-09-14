@@ -29,6 +29,13 @@ class OverlayUI {
         this.closeBtn = document.getElementById('close-btn');
         this.overlayContainer = document.querySelector('.overlay-container');
         
+        // Show indicator immediately - this is critical for visibility on app load
+        this.indicator.style.display = 'flex';
+        this.indicator.style.opacity = '1';
+        this.indicator.style.visibility = 'visible';
+        this.indicator.style.zIndex = '999999';
+        this.indicator.style.position = 'relative';
+        
         // Set initial position class
         this.updatePositionClass();
         this.screenshotGallery = document.getElementById('screenshot-gallery');
@@ -43,10 +50,22 @@ class OverlayUI {
         
         // Listen for IPC messages
         this.setupIPCListeners();
+
+        // Check for initial context and show appropriate message
+        this.checkInitialContext();
         
-        // Request current position from main process
-        this.currentPosition = ipcRenderer.sendSync('request-position');
-        this.updatePositionClass();
+        // Request current position from main process (non-blocking)
+        ipcRenderer.invoke('request-position')
+            .then((pos) => {
+                if (pos) {
+                    this.currentPosition = pos;
+                    this.updatePositionClass();
+                }
+            })
+            .catch((err) => {
+                console.warn('⚠️ Failed to get async position, using default:', err);
+                this.updatePositionClass();
+            });
         
         console.log('✅ Overlay UI initialized');
     }
@@ -179,12 +198,19 @@ class OverlayUI {
             this.expandPanel();
         });
 
+        // When the cursor leaves the expanded panel, collapse it shortly after
         this.panel.addEventListener('mouseleave', () => {
-            if (!this.isExpanded) {
-                this.hoverTimeout = setTimeout(() => {
-                    this.collapsePanel();
-                }, 300);
-            }
+            clearTimeout(this.hoverTimeout);
+            this.hoverTimeout = setTimeout(() => {
+                if (this.isExpanded) {
+                    this.collapsePanel(); // this will re-show the eye via CSS class removal
+                }
+            }, 250);
+        });
+
+        // If the user hovers the eye while a collapse is pending, keep it visible
+        this.indicator.addEventListener('mouseenter', () => {
+            clearTimeout(this.hoverTimeout);
         });
 
         // Close button
@@ -384,6 +410,19 @@ class OverlayUI {
     }
 
     setupIPCListeners() {
+        // Listen for eye icon show/hide commands
+        ipcRenderer.on('show-eye-icon', () => {
+            this.indicator.style.display = 'flex';
+            this.indicator.style.opacity = '1';
+            this.indicator.style.visibility = 'visible';
+        });
+        
+        ipcRenderer.on('hide-eye-icon', () => {
+            this.indicator.style.display = 'none';
+            this.indicator.style.opacity = '0';
+            this.indicator.style.visibility = 'hidden';
+        });
+        
         // Listen for actions from main process
         ipcRenderer.on('show-actions', (_, actions) => {
             this.actions = actions;
@@ -588,11 +627,31 @@ class OverlayUI {
         }
     }
 
-    showEmptyState() {
+    showEmptyState(message = "No current recommendations available.") {
         const emptyState = this.actionsContainer.querySelector('.empty-state');
         if (emptyState) {
+            const messageElement = emptyState.querySelector('p');
+            if(messageElement) {
+                messageElement.textContent = message;
+            }
             emptyState.style.display = 'block';
         }
+    }
+
+    checkInitialContext() {
+        // Check for screenshots and context immediately
+        ipcRenderer.invoke('get-screenshot-queue').then(screenshots => {
+            if (screenshots.length === 0) {
+                // No screenshots taken yet - show appropriate message
+                this.showEmptyState("No screenshots have been taken yet.");
+            } else {
+                // Screenshots exist, render them
+                this.renderScreenshots(screenshots);
+            }
+        }).catch(error => {
+            console.error('❌ Error checking initial context:', error);
+            this.showEmptyState("No screenshots have been taken yet.");
+        });
     }
 
     hideEmptyState() {
@@ -1252,6 +1311,7 @@ class OverlayUI {
         this.isExpanded = true;
         this.panel.classList.remove('hidden');
         this.indicator.classList.add('active');
+        this.indicator.classList.add('panel-expanded'); // Hide the eye when expanded
         clearTimeout(this.hoverTimeout);
         
         // Focus the panel for keyboard navigation
@@ -1270,6 +1330,7 @@ class OverlayUI {
         this.isExpanded = false;
         this.panel.classList.add('hidden');
         this.indicator.classList.remove('active');
+        this.indicator.classList.remove('panel-expanded'); // Show the eye when collapsed
         
         // Update ARIA attributes
         this.panel.setAttribute('aria-expanded', 'false');

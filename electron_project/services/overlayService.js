@@ -6,18 +6,35 @@ const AgenticPipelineService = require('./agenticPipelineService');
 
 class OverlayService {
   constructor() {
-    this.overlayWindow = null;
     this.isOverlayVisible = false;
+    this.isEyeIconVisible = true; // Eye icon visible by default
+    this.overlayWindow = null;
     this.screenshotQueue = [];
-    this.maxQueueSize = 5;
-    this.gestureListener = null;
-    this.dismissTimeout = null;
+    this.currentSession = null;
+    this.contextFile = null;
+    this.registeredShortcuts = [];null;
     this.allowClose = false;
     this.currentPosition = 'bottom-right'; // Track current position: 'top-left', 'top-right', 'bottom-left', 'bottom-right'
     this.registeredShortcuts = [];
     this.screenshotProcessor = new ScreenshotProcessingService();
     this.agenticPipeline = new AgenticPipelineService();
+    this.maxQueueSize = 5;
+    this.gestureListener = null;
+    this.dismissTimeout = null;
     this.currentSessionId = null;
+  }
+
+  // Unregister any shortcuts we explicitly disallow (e.g., Cmd+Shift+V)
+  unregisterDisallowedShortcuts() {
+    const disallowed = [
+      'Command+Shift+V',
+      'Cmd+Shift+V',
+      'CommandOrControl+Shift+V',
+      'Ctrl+Shift+V'
+    ];
+    for (const combo of disallowed) {
+      try { globalShortcut.unregister(combo); } catch (_) {}
+    }
   }
 
   /**
@@ -27,25 +44,20 @@ class OverlayService {
     try {
       console.log('🎯 Initializing VIPR Overlay Service...');
       
-      // Initialize screenshot processing service
-      await this.screenshotProcessor.initialize();
-      console.log('✅ Screenshot processing service initialized');
+      // Create overlay window IMMEDIATELY for instant eye icon visibility
+      await this.createOverlayWindow();
       
-      // Create new session
-      this.currentSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log('📝 Created session:', this.currentSessionId);
-      
-      // Register global shortcuts for circle gesture simulation
+      // Ensure disallowed shortcuts are unregistered (Cmd/Ctrl+Shift+V must do nothing)
+      this.unregisterDisallowedShortcuts();
+
+      // Register the single global shortcut (Cmd+Shift+O)
       this.registerGlobalShortcuts();
       
-      // Set up IPC handlers
+      // Set up IPC handlers (non-renderer, app-level)
       this.setupIPCHandlers();
       
-      // Register navigation shortcuts
-      this.registerNavigationShortcuts();
-      
-      // Create the overlay window but don't show it yet
-      await this.createOverlayWindow();
+      // Initialize other services in background (non-blocking)
+      this.initializeBackgroundServices();
       
       console.log('✅ Overlay service initialized successfully');
       return true;
@@ -53,6 +65,26 @@ class OverlayService {
       console.error('❌ Failed to initialize overlay service:', error);
       return false;
     }
+  }
+
+  // Initialize non-critical services in background
+  async initializeBackgroundServices() {
+    // Run these asynchronously without blocking the UI
+    setTimeout(async () => {
+      try {
+        // Initialize screenshot processing service
+        await this.screenshotProcessor.initialize();
+        console.log('✅ Screenshot processing service initialized');
+        
+        // Create new session
+        this.currentSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('📋 Created session:', this.currentSessionId);
+        
+        console.log('✅ Background services initialized');
+      } catch (error) {
+        console.error('❌ Error initializing background services:', error);
+      }
+    }, 100); // Small delay to ensure overlay is shown first
   }
 
   /**
@@ -218,50 +250,78 @@ class OverlayService {
    * Register global shortcuts to simulate circle gesture
    */
   registerGlobalShortcuts() {
-    // Try multiple shortcut combinations to avoid conflicts
-    const shortcuts = [
-      process.platform === 'darwin' ? 'Cmd+Shift+O' : 'Ctrl+Shift+O', // O for Overlay
-      process.platform === 'darwin' ? 'Cmd+Alt+O' : 'Ctrl+Alt+O',
-      process.platform === 'darwin' ? 'Cmd+Shift+V' : 'Ctrl+Shift+V'  // V for VIPR
+    // ONLY register the overlay toggle on Cmd/Ctrl+Shift+O
+    const candidates = [
+      'Command+Shift+O',
+      'Cmd+Shift+O',
+      'CommandOrControl+Shift+O',
+      'Ctrl+Shift+O'
     ];
-    
-    let registered = false;
-    let activeShortcut = '';
-    
-    for (const shortcut of shortcuts) {
+
+    // Unregister any previously registered versions
+    for (const combo of candidates) {
+      try { globalShortcut.unregister(combo); } catch (_) {}
+    }
+
+    let active = null;
+    for (const combo of candidates) {
       try {
-        const success = globalShortcut.register(shortcut, () => {
-          console.log('🔄 Shortcut pressed:', shortcut);
-          console.log('🎯 Toggling overlay display...');
-          this.handleShortcutToggle();
+        const ok = globalShortcut.register(combo, () => {
+          console.log('🔄 Shortcut pressed:', combo);
+          console.log('👁️ Toggling eye icon visibility...');
+          this.handleEyeIconToggle();
         });
-        
-        if (success) {
-          registered = true;
-          activeShortcut = shortcut;
-          console.log(`✅ Global shortcut registered: ${shortcut}`);
-          console.log(`📋 Press ${shortcut} to trigger overlay`);
+        if (ok) {
+          active = combo;
           break;
-        } else {
-          console.log(`⚠️ Failed to register ${shortcut}, trying next...`);
         }
-      } catch (error) {
-        console.log(`⚠️ Error registering ${shortcut}:`, error.message);
+      } catch (err) {
+        console.warn(`⚠️ Error registering ${combo}:`, err.message);
       }
     }
+
+    if (active) {
+      console.log(`✅ Global shortcut registered: ${active}`);
+      console.log(`📋 Press ${active} to show/hide eye icon`);
+    } else {
+      console.error('❌ Failed to register any overlay toggle shortcut.');
+      console.error('   Check System Settings > Privacy & Security > Accessibility for this app.');
+    }
+  }
+
+  /**
+   * Handle shortcut toggle
+   */
+  async handleEyeIconToggle() {
+    console.log('👁️ Toggling eye icon visibility...');
     
-    if (!registered) {
-      console.error('❌ Failed to register any global shortcut');
-      console.log('💡 You can also trigger overlay programmatically for testing');
-      
-      // Add a fallback method for testing
-      setTimeout(() => {
-        console.log('🧪 Testing overlay display in 3 seconds...');
-        setTimeout(() => {
-          console.log('🧪 Auto-triggering overlay for testing...');
-          this.handleCircleGesture();
-        }, 3000);
-      }, 1000);
+    // Ensure overlay window exists
+    if (!this.overlayWindow || this.overlayWindow.isDestroyed()) {
+      await this.createOverlayWindow();
+    }
+
+    if (this.isEyeIconVisible) {
+      console.log('🔄 Hiding eye icon...');
+      this.hideEyeIcon();
+    } else {
+      console.log('🔄 Showing eye icon...');
+      this.showEyeIcon();
+    }
+  }
+
+  showEyeIcon() {
+    if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+      this.overlayWindow.webContents.send('show-eye-icon');
+      this.isEyeIconVisible = true;
+      console.log('👁️ Eye icon shown');
+    }
+  }
+
+  hideEyeIcon() {
+    if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+      this.overlayWindow.webContents.send('hide-eye-icon');
+      this.isEyeIconVisible = false;
+      console.log('👁️ Eye icon hidden');
     }
   }
 
@@ -564,16 +624,24 @@ class OverlayService {
     // Make sure window stays on top of fullscreen windows
     this.overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     
-    // Load the overlay HTML
-    console.log('🔗 Loading overlay HTML...');
-    await this.overlayWindow.loadFile(path.join(__dirname, '../overlay/overlay.html'));
-    
-    // Set up IPC communication
+    // IMPORTANT: Set up IPC communication BEFORE loading the renderer so early
+    // ipcRenderer calls (sendSync/invoke) have listeners ready.
     this.setupOverlayIPC();
-    
+
     // Show the overlay window immediately so the VIPR button is visible
     this.overlayWindow.showInactive();
     this.isOverlayVisible = true;
+    this.isEyeIconVisible = true;
+    
+    // Load the overlay HTML (non-blocking)
+    console.log('🔗 Loading overlay HTML...');
+    this.overlayWindow.loadFile(path.join(__dirname, '../overlay/overlay.html'));
+    
+    // Ensure eye icon is visible after window loads
+    this.overlayWindow.webContents.once('did-finish-load', () => {
+      console.log('🔄 Overlay loaded, ensuring eye icon visibility...');
+      this.overlayWindow.webContents.send('show-eye-icon');
+    });
     
     console.log('✅ Overlay window created and shown');
     console.log('👁️ VIPR button should now be visible on screen');
@@ -586,10 +654,19 @@ class OverlayService {
   setupOverlayIPC() {
     if (!this.overlayWindow) return;
     
-    // Handle position changes from renderer
+    // Handle position request from renderer (sync)
     ipcMain.on('request-position', (event) => {
       event.returnValue = this.currentPosition;
     });
+    // Handle position request from renderer (async invoke)
+    try {
+      ipcMain.handle('request-position', async () => {
+        return this.currentPosition;
+      });
+    } catch (e) {
+      // If already registered due to hot reloads, ignore
+      console.warn('request-position handler registration issue:', e.message);
+    }
 
     // Handle move overlay to position requests from renderer
     ipcMain.on('move-overlay-to-position', (event, position) => {
@@ -602,6 +679,7 @@ class OverlayService {
         this.hideOverlay();
       }
     });
+
   }
 
   /**

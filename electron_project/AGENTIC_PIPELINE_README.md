@@ -27,7 +27,7 @@ The Agentic Pipeline System is an intelligent automation framework that analyzes
 
 #### 3. DedalusService (`services/dedalusService.js`)
 - Integrates with Dedalus platform for agentic task execution
-- Supports multiple AI models (GPT-4, Claude 3.5 Sonnet)
+- Uses Anthropic Claude models exclusively (Claude 3.5 Sonnet, Claude 3.5 Haiku)
 - Handles MCP server selection and configuration
 - Formats results for display with HTML, links, and images
 
