@@ -51,10 +51,33 @@ class ImageLinkExtractorService {
         throw new Error('Anthropic AI service not available (missing API key)');
       }
       
+      // Check if file exists and is readable
+      try {
+        await fs.promises.access(imagePath);
+      } catch (error) {
+        console.error('Image file does not exist or is not accessible:', imagePath);
+        throw new Error(`Image file not found: ${imagePath}`);
+      }
+
       // Read image file as base64
       const imageBuffer = await fs.promises.readFile(imagePath);
+      
+      // Validate that we actually got data
+      if (!imageBuffer || imageBuffer.length === 0) {
+        console.error('Image file is empty or corrupted:', imagePath);
+        throw new Error('Image file is empty or corrupted');
+      }
+      
       const base64Image = imageBuffer.toString('base64');
+      
+      // Validate base64 conversion
+      if (!base64Image || base64Image.length === 0) {
+        console.error('Failed to convert image to base64:', imagePath);
+        throw new Error('Failed to convert image to base64');
+      }
+      
       const mimeType = this.getMimeType(imagePath);
+      console.log(`🔍 Extracting text from image: ${imagePath}, size: ${imageBuffer.length} bytes, base64 length: ${base64Image.length}`);
 
       const prompt = `Extract all text content from this image. Please provide:
 1. All visible text exactly as it appears

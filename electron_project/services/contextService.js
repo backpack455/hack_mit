@@ -408,6 +408,41 @@ class ContextService {
       };
     }
   }
+
+  /**
+   * Get all sessions (placeholder - would need to integrate with actual session storage)
+   * @returns {Promise<Array>} Array of sessions
+   */
+  async getSessions() {
+    // This is a placeholder - in a real implementation, this would read from a database or file
+    // For now, return an empty array or mock data
+    console.log('📋 Getting sessions (placeholder implementation)');
+    return [];
+  }
+
+  /**
+   * Add artifact to session (placeholder - would need to integrate with actual session storage)
+   * @param {string} sessionId - Session ID
+   * @param {Object} artifact - Artifact to add
+   * @returns {Promise<boolean>} Success status
+   */
+  async addArtifactToSession(sessionId, artifact) {
+    // This is a placeholder - in a real implementation, this would save to a database or file
+    console.log('📁 Adding artifact to session:', sessionId, artifact.filename);
+    return true;
+  }
+
+  /**
+   * Remove artifact from session (placeholder - would need to integrate with actual session storage)
+   * @param {string} sessionId - Session ID
+   * @param {string} artifactId - Artifact ID to remove
+   * @returns {Promise<boolean>} Success status
+   */
+  async removeArtifactFromSession(sessionId, artifactId) {
+    // This is a placeholder - in a real implementation, this would remove from a database or file
+    console.log('🗑️ Removing artifact from session:', sessionId, artifactId);
+    return true;
+  }
 }
 
 module.exports = ContextService;

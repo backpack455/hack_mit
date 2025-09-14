@@ -1,0 +1,22 @@
+====================================================================================================
+SESSION CONTEXT - session_1757858826823_3257bymxb
+====================================================================================================
+Session Start: 2025-09-14T14:09:39.467Z
+Last Updated: 2025-09-14T14:09:39.674Z
+
+
+################################################################################
+SCREENSHOT 1 - 2025-09-14T14:09:39.467Z
+################################################################################
+
+AI VISUAL DESCRIPTION:
+Error: 400 {"type":"error","error":{"type":"invalid_request_error","message":"messages.0.content.0.image.source.base64: image cannot be empty"},"request_id":"req_011CT8RgG8xxb1LppxUNiMc3"}
+
+EXTRACTED TEXT (OCR):
+No text extracted or OCR failed
+Error: 400 {"type":"error","error":{"type":"invalid_request_error","message":"messages.0.content.0.image.source.base64: image cannot be empty"},"request_id":"req_011CT8RgGVYoRqPfGUb1KTZe"}
+
+DETECTED URLS: None
+
+================================================================================
+

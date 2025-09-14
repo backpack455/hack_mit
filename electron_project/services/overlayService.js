@@ -383,6 +383,11 @@ class OverlayService {
         console.log('✅ Screenshot captured, processing with AI...');
         console.log('🔍 DEBUG: Starting screenshot processing pipeline');
         
+        // Show screenshot processing state in overlay
+        if (this.isOverlayVisible && this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+          this.overlayWindow.webContents.send('show-screenshot-processing');
+        }
+        
         // Save screenshot to main screenshots folder for processing
         const screenshotDir = path.join(__dirname, '..', 'screenshots');
         await fs.mkdir(screenshotDir, { recursive: true });

@@ -57,6 +57,9 @@ class OverlayUI {
         // Set up drag functionality
         this.setupDragFunctionality();
         
+        // Set up upload functionality
+        this.setupUploadFunctionality();
+        
         // Set up live update listeners
         this.setupLiveUpdateListeners();
         
@@ -321,6 +324,318 @@ class OverlayUI {
         });
     }
 
+    setupUploadFunctionality() {
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('image-upload');
+        
+        if (!uploadArea || !fileInput) {
+            console.warn('Upload elements not found');
+            return;
+        }
+        
+        // Click handler for upload area
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // File input change handler
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                console.log('📁 File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+                
+                if (this.isValidImageFile(file)) {
+                    this.handleImageUpload(file);
+                } else {
+                    console.warn('❌ Invalid file type:', file.type, 'for file:', file.name);
+                    this.showUploadError(`Please select a valid image file (PNG, JPEG, or JPG). Got: ${file.type || 'unknown type'}`);
+                }
+            }
+        });
+        
+        // Drag and drop handlers
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                console.log('📁 File dropped:', file.name, 'Type:', file.type, 'Size:', file.size);
+                
+                if (this.isValidImageFile(file)) {
+                    this.handleImageUpload(file);
+                } else {
+                    console.warn('❌ Invalid file type:', file.type, 'for file:', file.name);
+                    this.showUploadError(`Please select a valid image file (PNG, JPEG, or JPG). Got: ${file.type || 'unknown type'}`);
+                }
+            }
+        });
+    }
+
+    isValidImageFile(file) {
+        const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+        const validExtensions = ['.png', '.jpg', '.jpeg'];
+        
+        // Check MIME type
+        const isValidMimeType = validTypes.includes(file.type);
+        
+        // Check file extension (fallback for files with incorrect MIME types)
+        const fileName = file.name.toLowerCase();
+        const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+        
+        // Also check if it's a valid image by trying to create an image object
+        return isValidMimeType || hasValidExtension;
+    }
+
+    async handleImageUpload(file) {
+        try {
+            console.log('📁 Uploading image:', file.name);
+            
+            // Force expand the panel immediately
+            if (!this.isExpanded) {
+                this.expandPanel();
+            }
+            
+            // Show upload notification
+            this.showUploadNotification(file.name);
+            
+            // Convert file to data URL
+            const dataURL = await this.fileToDataURL(file);
+            
+            // Create screenshot object similar to captured screenshots
+            const uploadedScreenshot = {
+                id: `upload-${Date.now()}`,
+                filename: file.name,
+                dataURL: dataURL,
+                timestamp: new Date().toISOString(),
+                type: 'uploaded',
+                path: null // No file path for uploaded images
+            };
+            
+            // Send to main process to add to session AND screenshot queue
+            await ipcRenderer.invoke('add-uploaded-image', uploadedScreenshot);
+            
+            // Add to screenshot queue for analysis
+            await ipcRenderer.invoke('add-to-screenshot-queue', uploadedScreenshot);
+            
+            // Add to local gallery
+            this.addScreenshotToGallery(uploadedScreenshot);
+            
+            // Update screenshot count
+            this.updateScreenshotCount();
+            
+            // Trigger immediate analysis
+            this.triggerAnalysisForUploadedImage(uploadedScreenshot);
+            
+            console.log('✅ Image uploaded successfully');
+            
+        } catch (error) {
+            console.error('❌ Error uploading image:', error);
+            this.showUploadError('Failed to upload image. Please try again.');
+        }
+    }
+
+    fileToDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async triggerAnalysisForUploadedImage(screenshot) {
+        try {
+            console.log('🔍 Triggering analysis for uploaded image:', screenshot.filename);
+            
+            // Show image processing state
+            this.showImageProcessingState();
+            
+            // Request agentic recommendations for the uploaded image
+            const recommendations = await ipcRenderer.invoke('generate-agentic-recommendations');
+            
+            if (recommendations && recommendations.length > 0) {
+                this.actions = recommendations;
+                this.renderActions();
+                console.log('✅ Analysis complete, actions generated:', recommendations.length);
+            } else {
+                console.log('⚠️ No recommendations generated');
+                this.showEmptyState("No actions available for this image.");
+            }
+            
+        } catch (error) {
+            console.error('❌ Error analyzing uploaded image:', error);
+            this.showEmptyState("Failed to analyze image. Please try again.");
+        }
+    }
+
+    showUploadNotification(filename) {
+        const notification = document.createElement('div');
+        notification.className = 'screenshot-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-icon">📁</div>
+                <div class="notification-text">
+                    <div class="notification-title">Image Uploaded!</div>
+                    <div class="notification-subtitle">Added ${filename} to session</div>
+                </div>
+            </div>
+        `;
+        
+        const panelBody = document.getElementById('panel-body');
+        if (panelBody) {
+            panelBody.insertBefore(notification, panelBody.firstChild);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }
+            }, 3000);
+        }
+    }
+
+    showUploadError(message) {
+        const notification = document.createElement('div');
+        notification.className = 'screenshot-notification';
+        notification.style.borderColor = 'rgba(249, 125, 125, 0.3)';
+        notification.style.background = 'linear-gradient(135deg, rgba(249, 125, 125, 0.1) 0%, rgba(224, 180, 101, 0.05) 100%)';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-icon">⚠️</div>
+                <div class="notification-text">
+                    <div class="notification-title">Upload Error</div>
+                    <div class="notification-subtitle">${message}</div>
+                </div>
+            </div>
+        `;
+        
+        const panelBody = document.getElementById('panel-body');
+        if (panelBody) {
+            panelBody.insertBefore(notification, panelBody.firstChild);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }
+            }, 4000);
+        }
+    }
+
+    addScreenshotToGallery(screenshot) {
+        const screenshotScroll = document.getElementById('screenshot-scroll');
+        if (!screenshotScroll) return;
+        
+        const screenshotItem = this.createScreenshotItem(screenshot, screenshotScroll.children.length);
+        screenshotScroll.appendChild(screenshotItem);
+        
+        // Mark as active
+        screenshotItem.classList.add('active');
+        
+        // Remove active from others
+        const otherItems = screenshotScroll.querySelectorAll('.screenshot-item');
+        otherItems.forEach(item => {
+            if (item !== screenshotItem) {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    updateScreenshotCount() {
+        const screenshotScroll = document.getElementById('screenshot-scroll');
+        const screenshotCount = document.getElementById('screenshot-count');
+        
+        if (screenshotScroll && screenshotCount) {
+            const count = screenshotScroll.children.length;
+            screenshotCount.textContent = `${count} screenshot${count !== 1 ? 's' : ''}`;
+        }
+    }
+
+    async removeUploadedImage(screenshotId, itemElement) {
+        try {
+            console.log('🗑️ Removing uploaded image:', screenshotId);
+            
+            // Send to main process to remove from session
+            await ipcRenderer.invoke('remove-uploaded-image', screenshotId);
+            
+            // Remove from UI with animation
+            itemElement.style.opacity = '0';
+            itemElement.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                if (itemElement.parentNode) {
+                    itemElement.remove();
+                    this.updateScreenshotCount();
+                }
+            }, 300);
+            
+            // Show removal notification
+            this.showRemovalNotification();
+            
+            console.log('✅ Image removed successfully');
+            
+        } catch (error) {
+            console.error('❌ Error removing image:', error);
+            this.showUploadError('Failed to remove image. Please try again.');
+        }
+    }
+
+    showRemovalNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'screenshot-notification';
+        notification.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+        notification.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(224, 180, 101, 0.05) 100%)';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-icon">🗑️</div>
+                <div class="notification-text">
+                    <div class="notification-title">Image Removed</div>
+                    <div class="notification-subtitle">Image deleted from session</div>
+                </div>
+            </div>
+        `;
+        
+        const panelBody = document.getElementById('panel-body');
+        if (panelBody) {
+            panelBody.insertBefore(notification, panelBody.firstChild);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }
+            }, 3000);
+        }
+    }
+
     setupDragFunctionality() {
         let startX, startY, startLeft, startTop;
 
@@ -545,6 +860,12 @@ class OverlayUI {
             this.checkScreenshotsBeforeLoading();
         });
         
+        // Listen for screenshot processing state
+        ipcRenderer.on('show-screenshot-processing', () => {
+            console.log('📸 Received screenshot processing signal');
+            this.showScreenshotProcessingState();
+        });
+        
         // Listen for position changes from main process
         ipcRenderer.on('position-changed', (_, { position }) => {
             this.currentPosition = position;
@@ -665,6 +986,19 @@ class OverlayUI {
         item.appendChild(img);
         item.appendChild(overlay);
         
+        // Add remove button for uploaded images
+        if (screenshot.type === 'uploaded') {
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'screenshot-remove-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.title = 'Remove image';
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeUploadedImage(screenshot.id, item);
+            });
+            item.appendChild(removeBtn);
+        }
+        
         // Add click handler
         item.addEventListener('click', () => {
             this.selectScreenshot(index);
@@ -729,13 +1063,93 @@ class OverlayUI {
         console.log("Rendered action buttons:", actionButtons.length);
     }
 
-    showLoadingState() {
+    showLoadingState(customText = 'Analyzing context...', customSubtext = 'Generating smart recommendations') {
         const loadingState = document.getElementById('loading-state');
         const emptyState = this.actionsContainer.querySelector('.empty-state');
         
         if (loadingState) {
             loadingState.style.display = 'flex';
+            loadingState.classList.add('processing-locked');
+            
+            // Update loading text if provided
+            const loadingText = loadingState.querySelector('.loading-text');
+            const loadingSubtext = loadingState.querySelector('.loading-subtext');
+            
+            if (loadingText) loadingText.textContent = customText;
+            if (loadingSubtext) loadingSubtext.textContent = customSubtext;
         }
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+        
+        // Set processing state to prevent dismissal
+        this.isProcessing = true;
+        this.taskRunning = true;
+        
+        // Ensure panel stays expanded during processing
+        this.expandPanel();
+        
+        // Add processing lock to panel header
+        const panelHeader = document.querySelector('.panel-header');
+        if (panelHeader) {
+            panelHeader.classList.add('processing-locked');
+        }
+    }
+    
+    showScreenshotProcessingState() {
+        console.log('📸 Showing screenshot processing state');
+        this.hideAllStates();
+        
+        const processingState = document.getElementById('screenshot-processing-state');
+        if (processingState) {
+            processingState.classList.add('active');
+        }
+        
+        // Force expand the panel
+        if (!this.isExpanded) {
+            this.expandPanel();
+        }
+        
+        // Set processing state
+        this.isProcessing = true;
+    }
+    
+    showImageProcessingState() {
+        console.log('📁 Showing image processing state');
+        this.hideAllStates();
+        
+        const processingState = document.getElementById('image-processing-state');
+        if (processingState) {
+            processingState.classList.add('active');
+        }
+        
+        // Force expand the panel
+        if (!this.isExpanded) {
+            this.expandPanel();
+        }
+        
+        // Set processing state
+        this.isProcessing = true;
+    }
+    
+    hideAllStates() {
+        // Hide all processing and loading states
+        const states = [
+            'screenshot-processing-state',
+            'image-processing-state', 
+            'loading-state'
+        ];
+        
+        states.forEach(stateId => {
+            const element = document.getElementById(stateId);
+            if (element) {
+                element.classList.remove('active');
+                element.style.display = 'none';
+            }
+        });
+        
+        // Also hide empty state by class
+        const emptyState = document.querySelector('.empty-state');
         if (emptyState) {
             emptyState.style.display = 'none';
         }
@@ -745,6 +1159,19 @@ class OverlayUI {
         const loadingState = document.getElementById('loading-state');
         if (loadingState) {
             loadingState.style.display = 'none';
+            loadingState.classList.remove('processing-locked');
+        }
+        
+        // Reset processing state
+        this.isProcessing = false;
+        // Note: taskRunning might still be true if a task is actually running
+        
+        // Remove processing lock from panel header if not in task
+        if (!this.taskRunning) {
+            const panelHeader = document.querySelector('.panel-header');
+            if (panelHeader) {
+                panelHeader.classList.remove('processing-locked');
+            }
         }
     }
 
@@ -994,6 +1421,7 @@ class OverlayUI {
         
         // Set task running state to prevent overlay from closing
         this.taskRunning = true;
+        this.isProcessing = true;
         
         // Initialize agentic task state
         this.currentTaskState = {
@@ -1021,6 +1449,7 @@ class OverlayUI {
         if (sequenceProgress) sequenceProgress.textContent = `0/${agenticTasks.length}`;
         taskSequence.style.display = 'block';
         taskSequence.classList.add('active');
+        taskSequence.classList.add('processing-locked');
         
         // Make sure task list and output are visible
         if (taskList) taskList.style.display = 'block';
@@ -1044,6 +1473,12 @@ class OverlayUI {
         
         // Ensure the panel stays expanded
         this.expandPanel();
+        
+        // Add processing lock to panel header
+        const panelHeader = document.querySelector('.panel-header');
+        if (panelHeader) {
+            panelHeader.classList.add('processing-locked');
+        }
         
         // Clear and populate task list
         if (taskList) {
@@ -1730,11 +2165,19 @@ class OverlayUI {
             taskSequence.classList.remove('active');
             taskSequence.classList.remove('results-ready');
             taskSequence.classList.remove('showing-results');
+            taskSequence.classList.remove('processing-locked');
         }
         
         // Reset state
         this.currentTaskState = null;
         this.taskRunning = false; // Reset task running state
+        this.isProcessing = false; // Reset processing state
+        
+        // Remove processing lock from panel header
+        const panelHeader = document.querySelector('.panel-header');
+        if (panelHeader) {
+            panelHeader.classList.remove('processing-locked');
+        }
         
         // Show screenshots gallery again
         if (this.screenshotGallery) this.screenshotGallery.style.display = 'block';
@@ -1980,21 +2423,37 @@ class OverlayUI {
     }
     
     dismissOverlay() {
-        // Always collapse the panel but keep the eye indicator visible
-        console.log('👋 Dismissing overlay panel but keeping eye visible');
-        this.collapsePanel();
-        
-        // Only send overlay-dismissed if we're not in a task or processing state
-        // This ensures the eye stays visible and clickable
+        // Check if we're in a processing state that should prevent dismissal
         const taskSequence = document.getElementById('task-sequence');
         const loadingState = document.getElementById('loading-state');
         const isTaskRunning = taskSequence && taskSequence.classList.contains('active');
         const isLoading = loadingState && loadingState.style.display !== 'none';
+        const isProcessingLocked = loadingState && loadingState.classList.contains('processing-locked');
+        const isTaskLocked = taskSequence && taskSequence.classList.contains('processing-locked');
         
-        // Only fully dismiss if no background processes are running
-        if (!isTaskRunning && !isLoading && !this.isProcessing && !this.taskRunning) {
-            ipcRenderer.send('overlay-dismissed');
+        // If we're processing or locked, show a message and prevent dismissal
+        if (isTaskRunning || isLoading || this.isProcessing || this.taskRunning || isProcessingLocked || isTaskLocked) {
+            console.log('🔒 Overlay is locked during processing - cannot dismiss');
+            
+            // Show a brief visual feedback that dismissal is blocked
+            const panel = document.getElementById('vipr-panel');
+            if (panel) {
+                panel.style.animation = 'shake 0.5s ease-in-out';
+                setTimeout(() => {
+                    panel.style.animation = '';
+                }, 500);
+            }
+            
+            return false; // Prevent dismissal
         }
+        
+        // Always collapse the panel but keep the eye indicator visible
+        console.log('👋 Dismissing overlay panel but keeping eye visible');
+        this.collapsePanel();
+        
+        // Send overlay-dismissed since we're not in a locked state
+        ipcRenderer.send('overlay-dismissed');
+        return true;
     }
 
     async notifyHover() {
@@ -2002,6 +2461,40 @@ class OverlayUI {
             await ipcRenderer.invoke('overlay-hover');
         } catch (error) {
             console.error('❌ Error notifying hover:', error);
+        }
+    }
+
+    showScreenshotNotification(payload) {
+        // Create a temporary notification element
+        const notification = document.createElement('div');
+        notification.className = 'screenshot-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-icon">📸</div>
+                <div class="notification-text">
+                    <div class="notification-title">Screenshot Captured!</div>
+                    <div class="notification-subtitle">Processing image...</div>
+                </div>
+            </div>
+        `;
+        
+        // Add to panel body
+        const panelBody = document.getElementById('panel-body');
+        if (panelBody) {
+            panelBody.insertBefore(notification, panelBody.firstChild);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }
+            }, 3000);
         }
     }
 
@@ -2017,10 +2510,13 @@ class OverlayUI {
             window.electronAPI.onScreenshotCaptured((_evt, payload) => {
                 console.log('📸 Screenshot captured, auto-opening overlay');
 
-                // Auto-expand the overlay when screenshot is taken
+                // Force overlay to open and show screenshot notification
                 if (!this.isExpanded) {
                     this.expandPanel();
                 }
+
+                // Show screenshot captured notification
+                this.showScreenshotNotification(payload);
 
                 // Show enhanced loading state for screenshot processing
                 this.showLoadingState('Processing screenshot...', 'Analyzing content and generating recommendations');
@@ -2069,10 +2565,13 @@ class OverlayUI {
             ipcRenderer.on('screenshot-captured', (_event, payload) => {
                 console.log('📸 Screenshot captured via IPC, auto-opening overlay');
 
-                // Auto-expand the overlay when screenshot is taken
+                // Force overlay to open and show screenshot notification
                 if (!this.isExpanded) {
                     this.expandPanel();
                 }
+
+                // Show screenshot captured notification
+                this.showScreenshotNotification(payload);
 
                 // Show enhanced loading state for screenshot processing
                 this.showLoadingState('Processing screenshot...', 'Analyzing content and generating recommendations');

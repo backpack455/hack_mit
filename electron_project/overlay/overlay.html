@@ -45,12 +45,49 @@
                         <h4 class="gallery-title">Recent Screenshots</h4>
                         <span class="screenshot-count" id="screenshot-count">0 screenshots</span>
                     </div>
+                    
+                    <!-- Image Upload Section -->
+                    <div class="upload-section">
+                        <div class="upload-area" id="upload-area">
+                            <div class="upload-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7,10 12,5 17,10"></polyline>
+                                    <line x1="12" y1="5" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
+                            <div class="upload-text">
+                                <div class="upload-title">Add Image</div>
+                                <div class="upload-subtitle">Click to upload PNG, JPEG, or JPG</div>
+                            </div>
+                        </div>
+                        <input type="file" id="image-upload" accept="image/png,image/jpeg,image/jpg" style="display: none;">
+                    </div>
+                    
                     <div class="screenshot-scroll" id="screenshot-scroll">
                         <!-- Screenshots will be populated by JavaScript -->
                     </div>
                 </div>
                 
                 <div class="actions-container" id="actions-container">
+                    <!-- Screenshot Processing State -->
+                    <div class="processing-state screenshot-processing" id="screenshot-processing-state">
+                        <div class="processing-spinner">
+                            <div class="spinner-ring"></div>
+                        </div>
+                        <div class="processing-text">Processing Screenshot...</div>
+                        <div class="processing-subtext">Analyzing visual content and extracting information</div>
+                    </div>
+                    
+                    <!-- Image Upload Processing State -->
+                    <div class="processing-state image-processing" id="image-processing-state">
+                        <div class="processing-spinner">
+                            <div class="spinner-ring"></div>
+                        </div>
+                        <div class="processing-text">Processing Image...</div>
+                        <div class="processing-subtext">Analyzing uploaded image and generating recommendations</div>
+                    </div>
+                    
                     <!-- Loading state -->
                     <div class="loading-state" id="loading-state">
                         <div class="loading-spinner">
@@ -70,7 +107,12 @@
                     
                     <!-- Actions will be dynamically inserted here -->
                     <div class="empty-state">
-                        <div class="empty-icon">👁️</div>
+                        <div class="empty-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </div>
                         <p>No actions available</p>
                         <p class="small">Use Cmd+Shift+O to toggle the overlay</p>
                     </div>

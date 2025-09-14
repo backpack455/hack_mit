@@ -1116,3 +1116,81 @@ ipcMain.handle('get-task-progress', async (event, actionId) => {
     return { status: 'error', progress: 0, error: error.message };
   }
 });
+
+// Image upload handlers
+ipcMain.handle('add-uploaded-image', async (event, imageData) => {
+  try {
+    console.log('📁 Adding uploaded image to session:', imageData.filename);
+    
+    // Get current session
+    const sessions = await contextService.getSessions();
+    const currentSession = sessions.find(s => s.mode === currentMode && s.isActive);
+    
+    if (!currentSession) {
+      throw new Error('No active session found');
+    }
+    
+    // Add image to session artifacts
+    const artifact = {
+      id: imageData.id,
+      type: 'screenshot',
+      filename: imageData.filename,
+      timestamp: imageData.timestamp,
+      dataURL: imageData.dataURL,
+      isUploaded: true
+    };
+    
+    await contextService.addArtifactToSession(currentSession.id, artifact);
+    
+    console.log('✅ Uploaded image added to session successfully');
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Error adding uploaded image:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remove-uploaded-image', async (event, imageId) => {
+  try {
+    console.log('🗑️ Removing uploaded image:', imageId);
+    
+    // Get current session
+    const sessions = await contextService.getSessions();
+    const currentSession = sessions.find(s => s.mode === currentMode && s.isActive);
+    
+    if (!currentSession) {
+      throw new Error('No active session found');
+    }
+    
+    // Remove image from session artifacts
+    await contextService.removeArtifactFromSession(currentSession.id, imageId);
+    
+    console.log('✅ Uploaded image removed from session successfully');
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Error removing uploaded image:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Add uploaded image to screenshot queue for analysis
+ipcMain.handle('add-to-screenshot-queue', async (event, imageData) => {
+  try {
+    console.log('📚 Adding uploaded image to screenshot queue:', imageData.filename);
+    
+    if (overlayService) {
+      // Add to overlay service screenshot queue
+      overlayService.addToScreenshotQueue(imageData);
+      console.log('✅ Uploaded image added to screenshot queue successfully');
+      return { success: true };
+    } else {
+      throw new Error('Overlay service not available');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error adding to screenshot queue:', error);
+    return { success: false, error: error.message };
+  }
+});

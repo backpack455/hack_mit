@@ -48,9 +48,53 @@
       "mode": "study",
       "title": "Study • 2025-09-14",
       "created_at": "2025-09-14T07:40:26.542Z",
-      "updated_at": "2025-09-14T13:03:22.319Z",
+      "updated_at": "2025-09-14T14:08:39.692Z",
       "tags": [],
       "artifacts": [
+        {
+          "id": "art-1757858919692",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T14-08-39-690Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T14-08-39-690Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T14:08:39.692Z"
+        },
+        {
+          "id": "art-1757857402362",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T13-43-22-360Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T13-43-22-360Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T13:43:22.362Z"
+        },
+        {
+          "id": "art-1757856846290",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T13-34-06-289Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T13-34-06-289Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T13:34:06.290Z"
+        },
+        {
+          "id": "art-1757856810084",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T13-33-30-027Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T13-33-30-027Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T13:33:30.084Z"
+        },
         {
           "id": "art-1757855002319",
           "session_id": "study-2025-09-14",

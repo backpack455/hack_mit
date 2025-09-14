@@ -81,10 +81,33 @@ class ScreenshotProcessingService {
         };
       }
 
+      // Check if file exists and is readable
+      try {
+        await fs.access(imagePath);
+      } catch (error) {
+        console.error('Screenshot file does not exist or is not accessible:', imagePath);
+        throw new Error(`Screenshot file not found: ${imagePath}`);
+      }
+
       // Read image file as base64
       const imageBuffer = await fs.readFile(imagePath);
+      
+      // Validate that we actually got data
+      if (!imageBuffer || imageBuffer.length === 0) {
+        console.error('Screenshot file is empty or corrupted:', imagePath);
+        throw new Error('Screenshot file is empty or corrupted');
+      }
+      
       const base64Image = imageBuffer.toString('base64');
+      
+      // Validate base64 conversion
+      if (!base64Image || base64Image.length === 0) {
+        console.error('Failed to convert screenshot to base64:', imagePath);
+        throw new Error('Failed to convert screenshot to base64');
+      }
+      
       const mimeType = this.getMimeType(imagePath);
+      console.log(`📸 Processing screenshot: ${imagePath}, size: ${imageBuffer.length} bytes, base64 length: ${base64Image.length}`);
 
       const prompt = `Analyze this screenshot and provide a concise, informative description. Focus on:
 1. What type of application or interface is shown
