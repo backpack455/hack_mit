@@ -1,13 +1,100 @@
 {
   "sessions": [
     {
+      "id": "research-2025-09-14",
+      "mode": "research",
+      "title": "Research • 2025-09-14",
+      "created_at": "2025-09-14T10:25:41.060Z",
+      "updated_at": "2025-09-14T12:56:13.709Z",
+      "tags": [],
+      "artifacts": [
+        {
+          "id": "art-1757854573709",
+          "session_id": "research-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T12-56-13-707Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T12-56-13-707Z.png",
+            "mode": "research"
+          },
+          "created_at": "2025-09-14T12:56:13.709Z"
+        },
+        {
+          "id": "art-1757845583256",
+          "session_id": "research-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T10-26-23-255Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T10-26-23-255Z.png",
+            "mode": "research"
+          },
+          "created_at": "2025-09-14T10:26:23.256Z"
+        },
+        {
+          "id": "art-1757845541060",
+          "session_id": "research-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T10-25-41-059Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T10-25-41-059Z.png",
+            "mode": "research"
+          },
+          "created_at": "2025-09-14T10:25:41.060Z"
+        }
+      ]
+    },
+    {
       "id": "study-2025-09-14",
       "mode": "study",
       "title": "Study • 2025-09-14",
       "created_at": "2025-09-14T07:40:26.542Z",
-      "updated_at": "2025-09-14T08:15:37.862Z",
+      "updated_at": "2025-09-14T13:03:22.319Z",
       "tags": [],
       "artifacts": [
+        {
+          "id": "art-1757855002319",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T13-03-22-318Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T13-03-22-318Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T13:03:22.319Z"
+        },
+        {
+          "id": "art-1757854996718",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T13-03-16-716Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T13-03-16-716Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T13:03:16.718Z"
+        },
+        {
+          "id": "art-1757844369444",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T10-06-09-443Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T10-06-09-443Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T10:06:09.444Z"
+        },
+        {
+          "id": "art-1757844337526",
+          "session_id": "study-2025-09-14",
+          "kind": "screenshot",
+          "path": "/Users/akshuenaganti/Desktop/hack_mit/electron_project/screenshots/screenshot-2025-09-14T10-05-37-525Z.png",
+          "meta_json": {
+            "filename": "screenshot-2025-09-14T10-05-37-525Z.png",
+            "mode": "study"
+          },
+          "created_at": "2025-09-14T10:05:37.526Z"
+        },
         {
           "id": "art-1757837737862",
           "session_id": "study-2025-09-14",

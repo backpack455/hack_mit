@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Map existing CSS variables so current palette matches Tailwind classes */
+:root {
+  --bg:#171A1C; --surface:#1E2225; --surface-elevated:#262B2F;
+  --text-primary:#F3F5F7; --text-muted:#B5BBC4;
+  --primary:#E0B465; --primary-hover:#F0C57A; --primary-pressed:#CFA052;
+  --accent:#6FB7FF; --borders:#323940;
+}
+
+@keyframes eyePulse {
+  0%,100%{ transform: scale(1); filter: drop-shadow(0 0 10px rgba(224,180,101,.35)); }
+  50%{ transform: scale(1.04); filter: drop-shadow(0 0 18px rgba(224,180,101,.55)); }
+}
+
+/* Reusable "card" */
+@layer components {
+  .vipr-card {
+    @apply bg-surface/100 border border-borderc rounded-xl2 shadow-soft hover:shadow-lift transition;
+  }
+  .vipr-btn {
+    @apply inline-flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition;
+  }
+  .vipr-btn-primary {
+    @apply vipr-btn bg-primary text-bg hover:bg-primaryHover;
+  }
+  .vipr-chip {
+    @apply inline-flex items-center rounded-full bg-surface2/70 border border-borderc px-3 py-1 text-sm text-text-muted;
+  }
+  .vipr-heading {
+    @apply font-display text-3xl md:text-4xl tracking-tight text-text;
+  }
+
+  .seg-btn.active{
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0,0,0,.25) inset, 0 0 0 1px rgba(255,255,255,.03);
+  }
+}

@@ -8,20 +8,9 @@ let currentMode = 'study';
 let sessions = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  setupNavigation();
+  setupModeSync();
   setupGestureControls();
   await updateGestureStatus();
-  const initialMode = await window.electronAPI.getMode();
-  setModeUI(initialMode);
-  window.electronAPI.onModeChanged((event, mode) => setModeUI(mode));
-
-  // --- NEW: Initial load for session view
-  await refreshSessionsUI();
-
-  // React to mode changes from tray or elsewhere
-  window.electronAPI.onModeChanged(async (newMode) => {
-    await refreshSessionsUI();
-  });
 
   // React to session updates and new screenshots
   window.electronAPI.onSessionUpdated(async (_data) => {
@@ -36,33 +25,150 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (modeCards) modeCards.style.display = 'none';
 });
 
-function setupNavigation() {
+// Unified mode synchronization system
+function setupModeSync() {
+  // Get all mode selection elements
   const modeRadios = document.querySelectorAll('.mode-switch input[name="mode-toggle"]');
+  const modeButtons = document.querySelectorAll('[data-mode]');
+  const modeLabel = document.getElementById('mode-label');
+
+  // Unified function to update ALL mode UI elements
+  const syncAllModeUI = (mode) => {
+    // Add safety check for undefined mode and extract from objects
+    if (!mode || typeof mode !== 'string') {
+      console.warn('syncAllModeUI called with invalid mode:', mode);
+      // Try to extract mode from object if it's an object
+      if (mode && typeof mode === 'object') {
+        mode = mode.mode || mode.value || mode.data || 'study';
+      } else {
+        mode = 'study'; // fallback to default
+      }
+    }
+    
+    console.log('syncAllModeUI processing mode:', mode);
+    currentMode = mode;
+    
+    // Update radio buttons in toggle slide
+    modeRadios.forEach(radio => {
+      radio.checked = radio.value === mode;
+    });
+    
+    // Update any data-mode buttons
+    modeButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    
+    // Update mode label with safe string handling
+    if (modeLabel && mode && typeof mode === 'string' && mode.length > 0) {
+      modeLabel.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    }
+    
+    // Update sessions display
+    loadSessions(mode);
+    renderSessions();
+  };
+
+  // Handle radio button changes (toggle slide)
   modeRadios.forEach(radio => {
     radio.addEventListener('change', async () => {
-      const mode = radio.value;
-      await window.electronAPI.setMode(mode);
-      // UI update happens via onModeChanged
+      if (radio.checked) {
+        const mode = radio.value;
+        await window.electronAPI.setMode(mode);
+        syncAllModeUI(mode);
+      }
     });
   });
 
-  document.getElementById('logo-link')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    setModeUI(currentMode);
-    // Optionally collapse other sections or modals
+  // Handle data-mode button clicks (if any)
+  modeButtons.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const mode = btn.dataset.mode;
+      await window.electronAPI.setMode(mode);
+      syncAllModeUI(mode);
+    });
+  });
+
+  // Initial mode from main process
+  window.electronAPI.getMode().then(mode => {
+    console.log('Initial mode from main process:', mode);
+    syncAllModeUI(mode || 'study');
+  }).catch(err => {
+    console.error('Error getting initial mode:', err);
+    syncAllModeUI('study');
+  });
+
+  // Listen for mode changes from other sources (tray menu, etc.)
+  window.electronAPI.onModeChanged((event, mode) => {
+    console.log('Mode changed from external source - event:', event, 'mode:', mode);
+    // The main process sends the mode as the second parameter
+    const actualMode = mode || 'study';
+    console.log('Extracted mode:', actualMode);
+    syncAllModeUI(actualMode);
   });
 }
 
-function setModeUI(mode) {
-  currentMode = mode;
+// 3) Buttons
+document.getElementById('home-nav')?.addEventListener('click', () => {
+  // keep you on home; if you have multi-page, navigate here.
+});
 
-  // highlight radio buttons
-  document.querySelectorAll('.mode-switch input[name="mode-toggle"]').forEach(r => {
-    r.checked = r.value === mode;
+document.getElementById('btn-new-screenshot')?.addEventListener('click', async () => {
+  await window.electronAPI.captureScreenshot();
+});
+
+document.getElementById('btn-open-app')?.addEventListener('click', async () => {
+  // TODO: implement overlay opening
+  console.log('Open overlay clicked');
+});
+
+// 2) Populate sessions (placeholder; hook to your DB later)
+async function loadSessions(mode){
+  const grid = document.getElementById('session-container');
+  if(!grid) return;
+  grid.innerHTML = '';
+
+  // TODO: swap this demo data with your real session store
+  const demo = [
+    { id:1, kind:'screenshot', title:'Lecture – Fourier Series', ts: Date.now(), src:'screenshots/sample-1.png' },
+    { id:2, kind:'transcript', title:'Standup – Platform', ts: Date.now()-3600000 },
+  ].filter(x => mode ? true : true);
+
+  if(!demo.length){
+    grid.innerHTML = `
+      <div class="empty-state rounded-lg bg-surface/50 border border-borderc p-8">
+        <div class="icon empty-icon target-icon mb-4"></div>
+        <h3 class="font-display text-xl font-medium text-text mb-2">No sessions yet</h3>
+        <p class="text-text-muted leading-relaxed">Capture a screenshot or start recording to build your knowledge base</p>
+      </div>`;
+    return;
+  }
+
+  for(const s of demo){
+    const card = document.createElement('article');
+    card.className = 'vipr-card overflow-hidden';
+    card.innerHTML = `
+      ${s.src ? `<img class="w-full h-44 object-cover" src="${s.src}" alt="">` : ''}
+      <div class="p-4">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="font-display text-lg text-text line-clamp-1">${s.title}</h3>
+          <span class="vipr-chip">${s.kind.charAt(0).toUpperCase()+s.kind.slice(1)}</span>
+        </div>
+        <p class="text-text-muted mt-1 text-sm">${new Date(s.ts).toLocaleString()}</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button class="vipr-btn bg-surface2 text-text hover:bg-surface" data-action="deck" data-id="${s.id}">Generate Deck</button>
+          <button class="vipr-btn bg-surface2 text-text hover:bg-surface" data-action="visual" data-id="${s.id}">Generate Visual</button>
+          <button class="vipr-btn bg-accent text-bg hover:bg-blue-400" data-action="ask" data-id="${s.id}">Ask AI</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  }
+}
+
+function setupNavigation() {
+  document.getElementById('logo-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Logo click - could add functionality here if needed
   });
-
-  // render sessions for this mode
-  renderSessions();
 }
 
 async function refreshSessionsUI() {
@@ -206,34 +312,51 @@ function renderSessions() {
 
 function createSessionCard(session) {
   const card = document.createElement('div');
-  card.className = 'session-item';
+  card.className = 'session-card';
   card.dataset.mode = session.mode;
 
   // Find screenshot and transcript artifacts
   const screenshot = session.artifacts.find(a => a.kind === 'screenshot');
   const transcript = session.artifacts.find(a => a.kind === 'transcript');
 
-  // Create preview content
-  let previewContent = '';
+  // Create thumbnail content
+  let thumbnailContent = '';
   if (screenshot) {
     // Handle both file paths and data URLs
     const imageSrc = screenshot.dataURL || `file://${screenshot.path}`;
-    previewContent = `<div class="session-preview"><img src="${imageSrc}" alt="Session preview" onerror="this.style.display='none'" /></div>`;
+    thumbnailContent = `<img src="${imageSrc}" alt="Session thumbnail" onerror="this.innerHTML='<div class=\\"icon\\">📸</div>'" />`;
   } else if (transcript) {
-    previewContent = `<div class="session-preview-text">Transcript preview: Lorem ipsum dolor sit amet, consectetur adipiscing elit...</div>`;
+    thumbnailContent = `<div class="icon">📄</div>`;
+  } else {
+    thumbnailContent = `<div class="icon">👁️</div>`;
   }
 
+  // Format timestamp
+  const formattedDate = new Date(session.created_at).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
   card.innerHTML = `
-    <h3>${session.title}</h3>
-    <div class="session-meta">
-      ${new Date(session.created_at).toLocaleDateString()} • ${session.artifacts.length} item${session.artifacts.length === 1 ? '' : 's'}
+    <div class="session-card-thumbnail">
+      ${thumbnailContent}
     </div>
-    ${previewContent}
-    <div class="session-actions">
-      <button class="session-action-btn" onclick="viewSessionDetails('${session.id}')">View Screenshots</button>
-      <button class="session-action-btn" onclick="convertToSlideDeck('${session.id}')">Convert to Slide Deck</button>
-      <button class="session-action-btn" onclick="generateVisual('${session.id}')">Generate Visual</button>
-      <button class="session-action-btn" onclick="requestAIClarification('${session.id}')">Request AI Clarification</button>
+    <div class="session-card-content">
+      <div class="session-card-header">
+        <div class="session-card-title">${session.title}</div>
+        <div class="session-card-time">${formattedDate}</div>
+      </div>
+      <div class="session-meta">
+        ${session.artifacts.length} item${session.artifacts.length === 1 ? '' : 's'} • ${session.mode}
+      </div>
+      <div class="session-card-actions">
+        <button onclick="viewSessionDetails('${session.id}')">View</button>
+        <button onclick="convertToSlideDeck('${session.id}')">Convert</button>
+        <button onclick="generateVisual('${session.id}')">Visual</button>
+        <button onclick="requestAIClarification('${session.id}')">AI</button>
+      </div>
     </div>
   `;
 

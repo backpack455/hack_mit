@@ -329,11 +329,15 @@
 body {
     font-family: var(--font-primary);
     font-weight: 400;
+    font-size: 16px;
     background: transparent;
     color: var(--text-primary);
+    margin: 0;
+    padding: 0;
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
+    line-height: 1.6;
     -webkit-app-region: no-drag;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -353,35 +357,18 @@ body {
 
 .overlay-container {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
     z-index: 999999;
-    pointer-events: auto;
-    cursor: grab;
-}
-
-.overlay-container.dragging {
-    cursor: grabbing;
-}
-
-.overlay-container.position-bottom-right {
-    bottom: 20px;
-    right: 20px;
-}
-
-.overlay-container.position-bottom-left {
-    bottom: 20px;
-    left: 20px;
-}
-
-.overlay-container.position-top-right {
-    top: 20px;
-    right: 20px;
-}
-
-.overlay-container.position-top-left {
-    top: 20px;
-    left: 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: var(--spacing-lg);
+    transition: var(--transition);
+    font-family: var(--font-primary);
 }
 
 /* Collapsed state - VIPR Eye Indicator */
@@ -488,29 +475,25 @@ body {
 
 /* Expanded state - Enhanced VIPR action panel */
 .vipr-panel {
-    width: 50vw;
-    min-width: 400px;
-    max-width: 50vw;
+    width: 45vw;
+    min-width: 420px;
+    max-width: 600px;
     max-height: 80vh;
     background: var(--surface);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255, 255, 255, 0.03);
-    position: relative;
-    z-index: 999999;
-    margin-top: 12px;
-    overflow: hidden;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: all 0.3s var(--ease-out);
-    pointer-events: auto;
-    -webkit-app-region: no-drag;
-    border: 1px solid rgba(50, 57, 64, 0.5);
+    backdrop-filter: saturate(180%) blur(30px);
+    -webkit-backdrop-filter: saturate(180%) blur(30px);
+    border-radius: 12px;
+    border: 1px solid var(--borders);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
-    transform-origin: top center;
-    animation: panelEnter 0.3s var(--ease-out) forwards;
-    transform: scale(0.95);
+    overflow: hidden;
     opacity: 0;
+    transform: scale(0.95) translateY(10px);
+    transition: var(--transition);
+    pointer-events: auto;
+    animation: panelEnter 0.3s ease forwards;
+    font-family: var(--font-primary);
 }
 
 /* New unified scroll region for screenshots + actions */
@@ -634,9 +617,11 @@ kbd {
 
 /* Screenshot Gallery */
 .screenshot-gallery {
-    margin: 0 24px 20px 24px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid rgba(50, 57, 64, 0.3);
+    margin: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-md) 0;
+    border-bottom: 1px solid var(--borders);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .gallery-header {
@@ -663,11 +648,11 @@ kbd {
 
 .screenshot-scroll {
     display: flex;
-    gap: 12px;
+    gap: var(--spacing-sm);
     overflow-x: auto;
-    padding: 8px 0;
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-xs) var(--spacing-md);
     scrollbar-width: thin;
-    scrollbar-color: rgba(50, 57, 64, 0.5) transparent;
+    scrollbar-color: var(--borders) transparent;
 }
 
 .screenshot-scroll::-webkit-scrollbar {
