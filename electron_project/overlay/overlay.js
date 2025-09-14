@@ -16,7 +16,8 @@ class OverlayUI {
         this.dragStartLeft = 0;
         this.currentPosition = 'bottom-right';
         this.isVisible = true;
-        
+        this.isProcessing = false; // Track if we're processing gestures/screenshots
+
         this.init();
         this.setupKeyboardListeners();
     }
@@ -47,6 +48,9 @@ class OverlayUI {
         
         // Set up drag functionality
         this.setupDragFunctionality();
+        
+        // Set up live update listeners
+        this.setupLiveUpdateListeners();
         
         // Listen for IPC messages
         this.setupIPCListeners();
@@ -226,9 +230,28 @@ class OverlayUI {
             }
         });
 
-        // Click outside to dismiss
+        // Click outside to dismiss - but only on the actual overlay elements
         document.addEventListener('click', (e) => {
-            if (!this.panel.contains(e.target) && !this.indicator.contains(e.target)) {
+            // Don't dismiss if currently processing
+            if (this.isProcessing) {
+                return;
+            }
+
+            // Don't dismiss if loading state is visible
+            const loadingState = document.getElementById('loading-state');
+            if (loadingState && loadingState.style.display !== 'none') {
+                return;
+            }
+
+            // Only dismiss if clicking outside both the panel AND indicator
+            // AND not clicking on the transparent overlay container itself
+            const clickedOnOverlay = this.overlayContainer.contains(e.target);
+            const clickedOnIndicator = this.indicator.contains(e.target);
+            const clickedOnPanel = this.panel.contains(e.target);
+
+            // Only dismiss if we clicked somewhere that's not the indicator or panel
+            // but don't dismiss on transparent areas of the overlay container
+            if (!clickedOnIndicator && !clickedOnPanel && !clickedOnOverlay) {
                 this.dismissOverlay();
             }
         });
@@ -426,8 +449,8 @@ class OverlayUI {
             // Hide loading state and show actions
             this.hideLoadingState();
             this.renderActions();
-            
-            // Expand the panel when actions are received
+
+            // Expand the panel when actions are received and keep it open
             if (!this.isExpanded) {
                 this.togglePanel();
             }
@@ -467,6 +490,12 @@ class OverlayUI {
         if (this.closeBtn) {
             this.closeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                // Don't close if processing
+                const loadingState = document.getElementById('loading-state');
+                if (loadingState && loadingState.style.display !== 'none') {
+                    console.log('🚫 Cannot close overlay while processing');
+                    return;
+                }
                 ipcRenderer.send('request-close');
             });
         }
@@ -1384,13 +1413,13 @@ class OverlayUI {
     
     expandPanel() {
         if (this.isExpanded) return;
-        
+
         this.isExpanded = true;
         this.panel.classList.remove('hidden');
         this.indicator.classList.add('active');
         // Removed panel-expanded class - eye stays visible always
         clearTimeout(this.hoverTimeout);
-        
+
         // Focus the panel for keyboard navigation
         this.panel.setAttribute('aria-expanded', 'true');
         this.panel.focus();
@@ -1415,13 +1444,20 @@ class OverlayUI {
     }
     
     dismissOverlay() {
-        // Don't dismiss if task sequence is active
+        // Don't dismiss if task sequence is active or processing gestures
         const taskSequence = document.getElementById('task-sequence');
         if (taskSequence && taskSequence.classList.contains('active')) {
             console.log('🚫 Cannot dismiss overlay while task is running');
             return;
         }
-        
+
+        // Don't dismiss if currently processing (loading state visible)
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState && loadingState.style.display !== 'none') {
+            console.log('🚫 Cannot dismiss overlay while processing');
+            return;
+        }
+
         console.log('👋 Dismissing overlay');
         this.collapsePanel();
         ipcRenderer.send('overlay-dismissed');
@@ -1432,6 +1468,113 @@ class OverlayUI {
             await ipcRenderer.invoke('overlay-hover');
         } catch (error) {
             console.error('❌ Error notifying hover:', error);
+        }
+    }
+
+    setupLiveUpdateListeners() {
+        // Make sure we have access to electronAPI
+        if (typeof window !== 'undefined' && window.electronAPI) {
+            window.electronAPI.onModeChanged((mode) => {
+                // update the overlay mode pill / eye tint, etc.
+                const el = document.getElementById('overlay-mode');
+                if (el) el.textContent = mode.toUpperCase();
+            });
+
+            window.electronAPI.onScreenshotCaptured((_evt, payload) => {
+                console.log('📸 Screenshot captured, auto-opening overlay');
+
+                // Auto-expand the overlay when screenshot is taken
+                if (!this.isExpanded) {
+                    this.expandPanel();
+                }
+
+                // Show enhanced loading state for screenshot processing
+                this.showLoadingState('Processing screenshot...', 'Analyzing content and generating recommendations');
+
+                // prepend new thumbnail into overlay gallery
+                const list = document.getElementById('overlay-shots');
+                if (!list) return;
+                const item = document.createElement('img');
+                item.src = `file://${payload.filePath}`;
+                item.alt = payload.filename;
+                item.className = 'overlay-thumb';
+                item.style.width = '60px';
+                item.style.height = '40px';
+                item.style.objectFit = 'cover';
+                item.style.borderRadius = '4px';
+                item.style.margin = '2px';
+                list.prepend(item);
+
+                // Update screenshot count
+                const count = list.children.length;
+                const countEl = document.getElementById('screenshot-count');
+                if (countEl) {
+                    countEl.textContent = `${count} screenshot${count !== 1 ? 's' : ''}`;
+                }
+
+                // Request analysis of the new screenshot
+                setTimeout(() => {
+                    this.updateScreenshotGallery();
+                }, 500);
+            });
+
+            window.electronAPI.onSessionUpdated((_data) => {
+                // (Optional) flash a subtle "saved" indicator on the overlay
+                const tick = document.getElementById('overlay-saved');
+                if (!tick) return;
+                tick.classList.add('show');
+                setTimeout(() => tick.classList.remove('show'), 1200);
+            });
+        } else {
+            // Fallback to direct IPC if electronAPI not available
+            ipcRenderer.on('mode-changed', (_event, mode) => {
+                const el = document.getElementById('overlay-mode');
+                if (el) el.textContent = mode.toUpperCase();
+            });
+
+            ipcRenderer.on('screenshot-captured', (_event, payload) => {
+                console.log('📸 Screenshot captured via IPC, auto-opening overlay');
+
+                // Auto-expand the overlay when screenshot is taken
+                if (!this.isExpanded) {
+                    this.expandPanel();
+                }
+
+                // Show enhanced loading state for screenshot processing
+                this.showLoadingState('Processing screenshot...', 'Analyzing content and generating recommendations');
+
+                const list = document.getElementById('overlay-shots');
+                if (!list) return;
+                const item = document.createElement('img');
+                item.src = `file://${payload.filePath}`;
+                item.alt = payload.filename;
+                item.className = 'overlay-thumb';
+                item.style.width = '60px';
+                item.style.height = '40px';
+                item.style.objectFit = 'cover';
+                item.style.borderRadius = '4px';
+                item.style.margin = '2px';
+                list.prepend(item);
+
+                // Update screenshot count
+                const count = list.children.length;
+                const countEl = document.getElementById('screenshot-count');
+                if (countEl) {
+                    countEl.textContent = `${count} screenshot${count !== 1 ? 's' : ''}`;
+                }
+
+                // Request analysis of the new screenshot
+                setTimeout(() => {
+                    this.updateScreenshotGallery();
+                }, 500);
+            });
+
+            ipcRenderer.on('session-updated', (_event, _data) => {
+                const tick = document.getElementById('overlay-saved');
+                if (!tick) return;
+                tick.classList.add('show');
+                setTimeout(() => tick.classList.remove('show'), 1200);
+            });
         }
     }
 }
@@ -1448,11 +1591,23 @@ window.addEventListener('blur', () => {
     if (taskSequence && taskSequence.classList.contains('active')) {
         return;
     }
-    
+
+    // Don't dismiss if currently processing
+    const overlay = document.querySelector('.overlay-container');
+    if (overlay && overlay.isProcessing) {
+        return;
+    }
+
+    // Don't dismiss if loading state is visible
+    const loadingState = document.getElementById('loading-state');
+    if (loadingState && loadingState.style.display !== 'none') {
+        return;
+    }
+
     // Dismiss overlay when window loses focus
     setTimeout(() => {
         if (document.hasFocus()) return;
-        
+
         ipcRenderer.invoke('dismiss-overlay').catch(console.error);
     }, 1000);
 });
