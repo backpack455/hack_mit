@@ -38,12 +38,29 @@
                     <span class="screenshot-count" id="screenshot-count">0 screenshots</span>
                 </div>
                 <div class="screenshot-scroll" id="screenshot-scroll">
-                    <!-- Screenshots will be populated by JavaScript -->
+                    <div id="overlay-shots" class="overlay-shots">
+                        <!-- Screenshots will be populated by JavaScript -->
+                    </div>
                 </div>
             </div>
             
             <div class="actions-container" id="actions-container">
-                <!-- Actions will be populated by JavaScript -->
+                <!-- Loading state -->
+                <div class="loading-state" id="loading-state">
+                    <div class="loading-spinner">
+                        <div class="spinner-ring"></div>
+                    </div>
+                    <div class="loading-text" id="loading-text">Analyzing context...</div>
+                    <div class="loading-subtext" id="loading-subtext">Generating smart recommendations</div>
+                    <div class="loading-progress" id="loading-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Initializing...</div>
+                    </div>
+                </div>
+                
+                <!-- Actions will be dynamically inserted here -->
                 <div class="empty-state">
                     <div class="empty-icon">👁️</div>
                     <p>No actions available</p>
@@ -55,31 +72,45 @@
                     <span class="position-label">Position: </span>
                     <span id="position-display" class="position-value">Bottom Right</span>
                     <span class="sequence-progress" id="sequence-progress">0/0</span>
+                    <div id="overlay-saved" class="saved-indicator">✓ Saved</div>
+                    <div id="overlay-mode" class="mode-indicator">STUDY</div>
                 </div>
+
+                <!-- Task Sequence -->
+                <div class="task-sequence" id="task-sequence">
+                    <div class="task-header">
+                        <h4 class="sequence-title" id="sequence-title">Processing...</h4>
+                        <div class="task-status-bar">
+                            <span class="status-indicator" id="status-indicator"></span>
+                            <span class="status-text" id="status-text">Running</span>
+                            <span class="current-step" id="current-step">Step 1 of 5</span>
+                        </div>
+                    </div>
                 
-                <ul class="task-list" id="task-list">
-                    <!-- Task items will be populated by JavaScript -->
-                </ul>
+                    <ul class="task-list" id="task-list">
+                        <!-- Task items will be populated by JavaScript -->
+                    </ul>
+
+                    <div class="task-output" id="task-output">
+                        <div>Ready to execute...</div>
+                    </div>
                 
-                <div class="task-output" id="task-output">
-                    <div>Ready to execute...</div>
-                </div>
-                
-                <!-- Task Controls -->
-                <div class="task-controls" id="task-controls">
-                    <button class="control-btn cancel" id="cancel-btn">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                        Cancel
-                    </button>
-                    <button class="control-btn" id="close-task-btn">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20,6 9,17 4,12"></polyline>
-                        </svg>
-                        Close
-                    </button>
+                    <!-- Task Controls -->
+                    <div class="task-controls" id="task-controls">
+                        <button class="control-btn cancel" id="cancel-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                            Cancel
+                        </button>
+                        <button class="control-btn" id="close-task-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20,6 9,17 4,12"></polyline>
+                            </svg>
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

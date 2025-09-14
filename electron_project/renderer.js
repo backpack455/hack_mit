@@ -13,19 +13,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   await updateGestureStatus();
   const initialMode = await window.electronAPI.getMode();
   setModeUI(initialMode);
-  window.electronAPI.onModeChanged((mode) => setModeUI(mode));
+  window.electronAPI.onModeChanged((event, mode) => setModeUI(mode));
 
-  // Load sessions from overlay service
-  await loadSessions();
-  
-  // Initial render of sessions
-  renderSessions();
+  // --- NEW: Initial load for session view
+  await refreshSessionsUI();
 
-  // Refresh sessions periodically to show new gesture screenshots
-  setInterval(async () => {
-    await loadSessions();
-    renderSessions();
-  }, 5000); // Refresh every 5 seconds
+  // React to mode changes from tray or elsewhere
+  window.electronAPI.onModeChanged(async (newMode) => {
+    await refreshSessionsUI();
+  });
+
+  // React to session updates and new screenshots
+  window.electronAPI.onSessionUpdated(async (_data) => {
+    await refreshSessionsUI();
+  });
+  window.electronAPI.onScreenshotCaptured(async (_evt, _payload) => {
+    await refreshSessionsUI();
+  });
+
+  // Optional (hide mode cards): if your HTML still renders the Study/Work selection cards on the home page
+  const modeCards = document.querySelector('.mode-selection');
+  if (modeCards) modeCards.style.display = 'none';
 });
 
 function setupNavigation() {
@@ -55,6 +63,82 @@ function setModeUI(mode) {
 
   // render sessions for this mode
   renderSessions();
+}
+
+async function refreshSessionsUI() {
+  try {
+    const mode = await window.electronAPI.getMode();
+    const sessions = await window.electronAPI.getSessions(mode);
+    renderSessionList(sessions, mode);
+  } catch (e) {
+    console.error('Failed to refresh sessions:', e);
+  }
+}
+
+// Minimal card renderer (screenshots only for now)
+function renderSessionList(sessions, mode) {
+  const container = document.getElementById('session-container') || document.getElementById('work-session-container') || document.getElementById('sessions-root');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  if (!sessions || sessions.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = `
+      <div class="icon empty-icon target-icon"></div>
+      <h3>No ${mode} sessions yet</h3>
+      <p>Capture a screenshot or start recording to build your knowledge base</p>
+    `;
+    container.appendChild(empty);
+    return;
+  }
+
+  sessions.forEach((s) => {
+    const card = document.createElement('div');
+    card.className = 'screenshot-item';
+    const latestShot = (s.artifacts || []).find(a => a.kind === 'screenshot');
+
+    card.innerHTML = `
+      <div class="screenshot-info" style="padding-bottom:0.5rem">
+        <h4>${s.title}</h4>
+        <p>${new Date(s.updated_at).toLocaleString()}</p>
+      </div>
+      ${latestShot ? `<img src="file://${latestShot.path}" alt="${latestShot.meta_json?.filename || 'screenshot'}" />` : ''}
+      <div class="screenshot-info">
+        <div class="screenshot-actions">
+          <button class="view-btn" data-session="${s.id}">View</button>
+          <button class="analyze-btn" data-action="deck" data-session="${s.id}">Convert to Deck</button>
+          <button class="analyze-btn" data-action="visual" data-session="${s.id}">Generate Visual</button>
+          <button class="analyze-btn" data-action="ask" data-session="${s.id}">Ask AI</button>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  // Hook up buttons (stubs)
+  container.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.onclick = () => {
+      const action = btn.dataset.action;
+      const sessionId = btn.dataset.session;
+      alert(`[stub] ${action} → session ${sessionId}`);
+    };
+  });
+
+  container.querySelectorAll('button.view-btn').forEach(btn => {
+    btn.onclick = () => {
+      const sessionId = btn.dataset.session;
+      openSessionViewer(sessionId);
+    };
+  });
+}
+
+async function openSessionViewer(sessionId) {
+  const artifacts = await window.electronAPI.getArtifacts(sessionId);
+  // Minimal modal or console for now
+  console.log('Artifacts for', sessionId, artifacts);
+  alert(`Session ${sessionId} has ${artifacts.length} artifact(s). (Viewer TBD)`);
 }
 
 // Load sessions from the overlay service

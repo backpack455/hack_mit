@@ -5,6 +5,75 @@ const screenshot = require('screenshot-desktop');
 const { spawn } = require('child_process');
 require('dotenv').config();
 
+// --- NEW: Simple JSON session store -----------------------------------------
+const SESSIONS_DIR = path.join(__dirname, 'sessions');
+const SESSIONS_FILE = path.join(SESSIONS_DIR, 'sessions.json');
+
+function loadStore() {
+  try {
+    if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+    if (!fs.existsSync(SESSIONS_FILE)) {
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify({ sessions: [] }, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+  } catch (e) {
+    console.error('Failed to load session store:', e);
+    return { sessions: [] };
+  }
+}
+
+function saveStore(store) {
+  try {
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(store, null, 2));
+  } catch (e) {
+    console.error('Failed to save session store:', e);
+  }
+}
+
+function isoNow() { return new Date().toISOString(); }
+
+function sessionIdForToday(mode) {
+  const d = new Date();
+  const day = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${mode}-${day}`;
+}
+
+function ensureSession(store, mode) {
+  const id = sessionIdForToday(mode);
+  let s = store.sessions.find(s => s.id === id);
+  if (!s) {
+    s = {
+      id,
+      mode,
+      title: `${mode[0].toUpperCase()+mode.slice(1)} • ${id.split('-').slice(1).join('-')}`,
+      created_at: isoNow(),
+      updated_at: isoNow(),
+      tags: [],
+      artifacts: []  // inline for simplicity (keeps MVP simple)
+    };
+    store.sessions.unshift(s); // newest first
+  }
+  return s;
+}
+
+function addScreenshotArtifact(mode, filePath, filename, extraMeta={}) {
+  const store = loadStore();
+  const session = ensureSession(store, mode);
+  const artifact = {
+    id: `art-${Date.now()}`,
+    session_id: session.id,
+    kind: 'screenshot',
+    path: filePath,
+    meta_json: { filename, ...extraMeta },
+    created_at: isoNow()
+  };
+  session.artifacts.unshift(artifact);
+  session.updated_at = isoNow();
+  saveStore(store);
+  return { session, artifact };
+}
+// ---------------------------------------------------------------------------
+
 // Helper for packaged app paths
 const RES = (...p) => app.isPackaged
   ? path.join(process.resourcesPath, ...p)
@@ -195,22 +264,34 @@ function createAppMenu() {
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(async () => {
-  // Set up IPC handlers for mode management
-  ipcMain.handle('set-mode', (event, mode) => {
-    if (['study', 'work', 'research'].includes(mode)) {
-      currentMode = mode;
-      // Update tray menu to sync ribbon with new mode
-      updateTrayMenu();
-      // Notify all windows of the mode change
-      BrowserWindow.getAllWindows().forEach(window => {
-        window.webContents.send('mode-changed', currentMode);
-      });
-      return true;
+  // --- NEW: Mode IPC ----------------------------------------------------------
+  ipcMain.handle('set-mode', (_evt, mode) => {
+    if (!['study','work','research'].includes(mode)) return currentMode;
+    currentMode = mode;
+    // notify all windows (main + overlay if present)
+    if (mainWindow) mainWindow.webContents.send('mode-changed', currentMode);
+    if (overlayService && overlayService.overlayWindow && !overlayService.overlayWindow.isDestroyed()) {
+      overlayService.overlayWindow.webContents.send('mode-changed', currentMode);
     }
-    return false;
+    // also refresh tray menu highlights if you build them off currentMode
+    updateTrayMenu && updateTrayMenu();
+    return currentMode;
   });
 
   ipcMain.handle('get-mode', () => currentMode);
+
+  // --- NEW: Sessions IPC ------------------------------------------------------
+  ipcMain.handle('get-sessions', (_evt, modeFilter) => {
+    const store = loadStore();
+    const list = Array.isArray(store.sessions) ? store.sessions : [];
+    return modeFilter ? list.filter(s => s.mode === modeFilter) : list;
+  });
+
+  ipcMain.handle('get-artifacts', (_evt, sessionId) => {
+    const store = loadStore();
+    const s = store.sessions.find(x => x.id === sessionId);
+    return s ? s.artifacts : [];
+  });
 
   // Hide dock icon for pure menu-bar app experience (optional)
   if (process.platform === 'darwin') {
@@ -256,8 +337,9 @@ app.on('before-quit', async (event) => {
     globalShortcut.unregisterAll();
     
     // Stop gesture detection
-    if (isGestureMode) {
-      stopGestureDetection();
+    if (gestureProcess && !gestureProcess.killed) {
+      gestureProcess.kill();
+      gestureProcess = null;
     }
     
     // Clean up overlay service with session cleanup
@@ -296,55 +378,56 @@ ipcMain.handle('show-message', (event, message) => {
 // Screenshot capture function
 async function captureScreenshot() {
   try {
-    // Capture screenshot without hiding windows - let it capture whatever is visible
-    console.log('Capturing screenshot...');
-    
-    const img = await screenshot({ 
-      format: 'png'
-    });
+    const img = await screenshot({ format: 'png' });
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `screenshot-${timestamp}.png`;
-    
-    // Save screenshot to local screenshots directory
-    const fs = require('fs');
+
     const screenshotsDir = path.join(__dirname, 'screenshots');
-    
-    // Create screenshots directory if it doesn't exist
     if (!fs.existsSync(screenshotsDir)) {
       fs.mkdirSync(screenshotsDir, { recursive: true });
     }
-    
     const filePath = path.join(screenshotsDir, filename);
     fs.writeFileSync(filePath, img);
-    
-    // Show notification
+
+    // Persist to session store under the ACTIVE MODE
+    const { session, artifact } = addScreenshotArtifact(
+      currentMode,
+      filePath,
+      filename,
+      { mode: currentMode }
+    );
+
+    // Notify user
     new Notification({
       title: 'Screenshot Captured',
-      body: `Screenshot saved to ${filename}`,
+      body: `Saved to ${currentMode} • ${session.id}`,
       silent: false
     }).show();
-    
-    // Send to renderer with local file path
+
+    // Broadcast to UI(s)
+    const payload = {
+      filename,
+      filePath,
+      timestamp: new Date().toISOString(),
+      mode: currentMode,
+      sessionId: session.id,
+      artifactId: artifact.id
+    };
+
     if (mainWindow) {
-      mainWindow.webContents.send('screenshot-captured', {
-        filename: filename,
-        filePath: filePath,
-        timestamp: new Date().toISOString()
-      });
+      mainWindow.webContents.send('screenshot-captured', payload);
+      mainWindow.webContents.send('session-updated', { session });
+      if (!mainWindow.isVisible()) { mainWindow.show(); mainWindow.focus(); }
     }
-    
-    // Note: Overlay handling is now done by overlayService.handleCircleGesture()
-    // This function is now only used for manual screenshot capture (Cmd+Shift+S)
-    // The gesture-based screenshots are handled entirely by the overlay service
-    
+    if (overlayService && overlayService.overlayWindow && !overlayService.overlayWindow.isDestroyed()) {
+      overlayService.overlayWindow.webContents.send('screenshot-captured', payload);
+      overlayService.overlayWindow.webContents.send('session-updated', { session });
+    }
+
     return filename;
   } catch (error) {
     console.error('Screenshot capture failed:', error);
-    new Notification({
-      title: 'Screenshot Failed',
-      body: 'Could not capture screenshot',
-      silent: false
-    }).show();
+    new Notification({ title: 'Screenshot Failed', body: 'Could not capture screenshot', silent: false }).show();
   }
 }
 
@@ -361,48 +444,22 @@ function setupGlobalShortcuts() {
   });
 }
 
-// REPLACE: rebuild the tray menu with new structure
 function updateTrayMenu() {
   if (!tray) return;
 
   // Check if the main window is visible (not hidden)
   const isWindowVisible = mainWindow && mainWindow.isVisible();
+  
+  // Check if overlay is visible to determine app visibility state
+  const appIsVisible = isWindowVisible || (overlayService && overlayService.isOverlayVisible);
 
   const template = [
     {
       label: 'Mode',
       submenu: [
-        {
-          label: 'Study',
-          type: 'radio',
-          checked: currentMode === 'study',
-          click: () => {
-            currentMode = 'study';
-            updateTrayMenu();
-            // notify renderer
-            if (mainWindow) mainWindow.webContents.send('mode-changed', 'study');
-          },
-        },
-        {
-          label: 'Work',
-          type: 'radio',
-          checked: currentMode === 'work',
-          click: () => {
-            currentMode = 'work';
-            updateTrayMenu();
-            if (mainWindow) mainWindow.webContents.send('mode-changed', 'work');
-          },
-        },
-        {
-          label: 'Research',
-          type: 'radio',
-          checked: currentMode === 'research',
-          click: () => {
-            currentMode = 'research';
-            updateTrayMenu();
-            if (mainWindow) mainWindow.webContents.send('mode-changed', 'research');
-          },
-        },
+        { label: 'Study', type: 'radio', checked: currentMode==='study', click: () => ipcMain.emit('force-set-mode', null, 'study') },
+        { label: 'Work', type: 'radio', checked: currentMode==='work', click: () => ipcMain.emit('force-set-mode', null, 'work') },
+        { label: 'Research', type: 'radio', checked: currentMode==='research', click: () => ipcMain.emit('force-set-mode', null, 'research') },
       ],
     },
     { type: 'separator' },
@@ -463,44 +520,6 @@ function updateTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: isWindowVisible ? 'Hide App' : 'Show App',
-      click: () => {
-        if (isWindowVisible) {
-          // Hide the app window and dock icon
-          if (mainWindow) {
-            mainWindow.hide();
-          }
-          // Hide dock icon on macOS
-          if (process.platform === 'darwin') {
-            app.dock.hide();
-          }
-          // Hide overlay if visible
-          if (overlayService && overlayService.isOverlayVisible) {
-            overlayService.hideOverlay();
-          }
-        } else {
-          // Show the app window
-          if (mainWindow) {
-            if (mainWindow.isMinimized()) {
-              mainWindow.restore();
-            }
-            mainWindow.show();
-            mainWindow.focus();
-            mainWindow.moveTop();
-            // On macOS, show the dock icon when opening the window
-            if (process.platform === 'darwin') {
-              app.dock.show();
-            }
-          } else {
-            // If window doesn't exist, create it
-            createWindow();
-          }
-        }
-        // Update the menu to reflect the new state
-        setTimeout(() => updateTrayMenu(), 100);
-      },
-    },
-    {
       label: 'Show Session History',
       click: () => {
         if (mainWindow) {
@@ -540,6 +559,16 @@ function updateTrayMenu() {
 
   tray.setContextMenu(contextMenu);
 }
+
+// Single place to apply + broadcast:
+ipcMain.on('force-set-mode', (_evt, mode) => {
+  currentMode = mode;
+  if (mainWindow) mainWindow.webContents.send('mode-changed', currentMode);
+  if (overlayService && overlayService.overlayWindow && !overlayService.overlayWindow.isDestroyed()) {
+    overlayService.overlayWindow.webContents.send('mode-changed', currentMode);
+  }
+  updateTrayMenu && updateTrayMenu();
+});
 
 // Toggle gesture detection mode
 function toggleGestureMode(enabled) {
@@ -1000,13 +1029,7 @@ ipcMain.handle('get-gesture-status', () => {
   return isGestureMode;
 });
 
-// IPC handler to get sessions for Session History page
-ipcMain.handle('get-sessions', () => {
-  if (overlayService) {
-    return overlayService.getSessionsForHistory();
-  }
-  return [];
-});
+// Legacy IPC handler removed - now handled by the new session store system above
 
 // IPC handler to get session details
 ipcMain.handle('get-session-details', (event, sessionId) => {

@@ -16,7 +16,8 @@ class OverlayUI {
         this.dragStartLeft = 0;
         this.currentPosition = 'bottom-right';
         this.isVisible = true;
-        
+        this.isProcessing = false; // Track if we're processing gestures/screenshots
+
         this.init();
         this.setupKeyboardListeners();
     }
@@ -40,6 +41,9 @@ class OverlayUI {
         
         // Set up drag functionality
         this.setupDragFunctionality();
+        
+        // Set up live update listeners
+        this.setupLiveUpdateListeners();
         
         // Listen for IPC messages
         this.setupIPCListeners();
@@ -200,9 +204,28 @@ class OverlayUI {
             }
         });
 
-        // Click outside to dismiss
+        // Click outside to dismiss - but only on the actual overlay elements
         document.addEventListener('click', (e) => {
-            if (!this.panel.contains(e.target) && !this.indicator.contains(e.target)) {
+            // Don't dismiss if currently processing
+            if (this.isProcessing) {
+                return;
+            }
+
+            // Don't dismiss if loading state is visible
+            const loadingState = document.getElementById('loading-state');
+            if (loadingState && loadingState.style.display !== 'none') {
+                return;
+            }
+
+            // Only dismiss if clicking outside both the panel AND indicator
+            // AND not clicking on the transparent overlay container itself
+            const clickedOnOverlay = this.overlayContainer.contains(e.target);
+            const clickedOnIndicator = this.indicator.contains(e.target);
+            const clickedOnPanel = this.panel.contains(e.target);
+
+            // Only dismiss if we clicked somewhere that's not the indicator or panel
+            // but don't dismiss on transparent areas of the overlay container
+            if (!clickedOnIndicator && !clickedOnPanel && !clickedOnOverlay) {
                 this.dismissOverlay();
             }
         });
@@ -387,12 +410,18 @@ class OverlayUI {
         // Listen for actions from main process
         ipcRenderer.on('show-actions', (_, actions) => {
             this.actions = actions;
+
+            // Hide loading state and show actions
+            this.hideLoadingState();
             this.renderActions();
-            
-            // Expand the panel when actions are received
+
+            // Expand the panel when actions are received and keep it open
             if (!this.isExpanded) {
-                this.togglePanel();
+                this.expandPanel();
             }
+
+            // Update screenshot gallery
+            this.updateScreenshotGallery();
         });
         
         // Listen for position changes from main process
@@ -422,6 +451,12 @@ class OverlayUI {
         if (this.closeBtn) {
             this.closeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                // Don't close if processing
+                const loadingState = document.getElementById('loading-state');
+                if (loadingState && loadingState.style.display !== 'none') {
+                    console.log('🚫 Cannot close overlay while processing');
+                    return;
+                }
                 ipcRenderer.send('request-close');
             });
         }
@@ -549,14 +584,131 @@ class OverlayUI {
     }
 
     renderActions() {
-        // Clear existing actions
-        this.actionsContainer.innerHTML = '';
+        // Clear existing actions (but preserve loading state)
+        const actionButtons = this.actionsContainer.querySelectorAll('.action-button');
+        actionButtons.forEach(btn => btn.remove());
 
-        // Create action buttons
-        this.actions.forEach((action) => {
-            const actionButton = this.createActionButton(action);
-            this.actionsContainer.appendChild(actionButton);
+        if (this.actions.length === 0) {
+            // Show empty state
+            this.showEmptyState();
+        } else {
+            // Hide empty state and create action buttons
+            this.hideEmptyState();
+            this.actions.forEach((action) => {
+                const actionButton = this.createActionButton(action);
+                this.actionsContainer.appendChild(actionButton);
+            });
+        }
+    }
+
+    showLoadingState(message = 'Analyzing context...', subtext = 'Generating smart recommendations') {
+        const loadingState = document.getElementById('loading-state');
+        const emptyState = this.actionsContainer.querySelector('.empty-state');
+        const loadingText = document.getElementById('loading-text');
+        const loadingSubtext = document.getElementById('loading-subtext');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+
+        if (loadingState) {
+            loadingState.style.display = 'flex';
+        }
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+        if (loadingText) {
+            loadingText.textContent = message;
+        }
+        if (loadingSubtext) {
+            loadingSubtext.textContent = subtext;
+        }
+        if (progressFill) {
+            progressFill.style.width = '20%';
+        }
+        if (progressText) {
+            progressText.textContent = 'Processing screenshot...';
+        }
+
+        // Animate progress over time
+        this.animateProgressBar();
+    }
+
+    animateProgressBar() {
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+
+        if (!progressFill || !progressText) return;
+
+        const steps = [
+            { width: '30%', text: 'Capturing screenshot...' },
+            { width: '50%', text: 'Analyzing content...' },
+            { width: '75%', text: 'Generating recommendations...' },
+            { width: '90%', text: 'Finalizing results...' }
+        ];
+
+        let currentStep = 0;
+        const stepDuration = 800; // milliseconds per step
+
+        const animateStep = () => {
+            if (currentStep < steps.length) {
+                const step = steps[currentStep];
+                progressFill.style.width = step.width;
+                progressText.textContent = step.text;
+                currentStep++;
+                setTimeout(animateStep, stepDuration);
+            }
+        };
+
+        setTimeout(animateStep, 500);
+    }
+
+    hideLoadingState() {
+        const loadingState = document.getElementById('loading-state');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+
+        if (loadingState) {
+            loadingState.style.display = 'none';
+        }
+        if (progressFill) {
+            progressFill.style.width = '0%';
+        }
+        if (progressText) {
+            progressText.textContent = 'Initializing...';
+        }
+    }
+
+    showEmptyState(message = "No current recommendations available.") {
+        const emptyState = this.actionsContainer.querySelector('.empty-state');
+        if (emptyState) {
+            const messageElement = emptyState.querySelector('p');
+            if(messageElement) {
+                messageElement.textContent = message;
+            }
+            emptyState.style.display = 'block';
+        }
+    }
+
+    checkInitialContext() {
+        // Check for screenshots and context immediately
+        ipcRenderer.invoke('get-screenshot-queue').then(screenshots => {
+            if (screenshots.length === 0) {
+                // No screenshots taken yet - show appropriate message
+                this.showEmptyState("No screenshots have been taken yet.");
+            } else {
+                // Screenshots exist, render them
+                this.renderScreenshots(screenshots);
+            }
+        }).catch(error => {
+            console.error('❌ Error checking initial context:', error);
+            this.showEmptyState("No screenshots have been taken yet.");
         });
+    }
+
+    hideEmptyState() {
+        const emptyState = this.actionsContainer.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
     }
 
     createActionButton(action) {
@@ -665,22 +817,30 @@ class OverlayUI {
 
     async executeAction(actionId) {
         try {
-            console.log(`🎯 Executing action: ${actionId}`);
-            
-            // Show task sequence instead of dismissing overlay
-            this.showTaskSequence(actionId);
-            
-            // Mock execution for now
-            const success = await ipcRenderer.invoke('execute-overlay-action', actionId);
-            
-            if (success) {
-                console.log(`✅ Action completed: ${actionId}`);
+            console.log(`🎯 Executing agentic action: ${actionId}`);
+
+            // Keep overlay open during processing
+            this.isProcessing = true;
+
+            // Show task sequence for agentic execution
+            this.showAgenticTaskSequence(actionId);
+
+            // Execute agentic action via IPC
+            const result = await ipcRenderer.invoke('execute-agentic-action', actionId);
+
+            if (result && result.type === 'success') {
+                console.log(`✅ Agentic action completed: ${actionId}`);
+                this.displayAgenticResult(actionId, result);
             } else {
                 console.error(`❌ Action failed: ${actionId}`);
             }
 
         } catch (error) {
-            console.error('❌ Error executing action:', error);
+            console.error('❌ Error executing agentic action:', error);
+            this.displayAgenticError(actionId, { type: 'error', content: error.message });
+        } finally {
+            // Mark processing as complete
+            this.isProcessing = false;
         }
     }
 
@@ -987,18 +1147,23 @@ class OverlayUI {
     
     expandPanel() {
         if (this.isExpanded) return;
-        
+
         this.isExpanded = true;
         this.panel.classList.remove('hidden');
         this.indicator.classList.add('active');
         clearTimeout(this.hoverTimeout);
-        
+
         // Focus the panel for keyboard navigation
         this.panel.setAttribute('aria-expanded', 'true');
         this.panel.focus();
-        
-        // Actions are loaded via IPC from the main process
-        // No need to call loadActions() here
+
+        // Show loading state when panel first opens (if no actions yet)
+        if (this.actions.length === 0) {
+            this.showLoadingState();
+        }
+
+        // Update screenshot gallery when expanding
+        this.updateScreenshotGallery();
     }
     
     collapsePanel() {
@@ -1016,13 +1181,20 @@ class OverlayUI {
     }
     
     dismissOverlay() {
-        // Don't dismiss if task sequence is active
+        // Don't dismiss if task sequence is active or processing gestures
         const taskSequence = document.getElementById('task-sequence');
         if (taskSequence && taskSequence.classList.contains('active')) {
             console.log('🚫 Cannot dismiss overlay while task is running');
             return;
         }
-        
+
+        // Don't dismiss if currently processing (loading state visible)
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState && loadingState.style.display !== 'none') {
+            console.log('🚫 Cannot dismiss overlay while processing');
+            return;
+        }
+
         console.log('👋 Dismissing overlay');
         this.collapsePanel();
         ipcRenderer.send('overlay-dismissed');
@@ -1033,6 +1205,113 @@ class OverlayUI {
             await ipcRenderer.invoke('overlay-hover');
         } catch (error) {
             console.error('❌ Error notifying hover:', error);
+        }
+    }
+
+    setupLiveUpdateListeners() {
+        // Make sure we have access to electronAPI
+        if (typeof window !== 'undefined' && window.electronAPI) {
+            window.electronAPI.onModeChanged((mode) => {
+                // update the overlay mode pill / eye tint, etc.
+                const el = document.getElementById('overlay-mode');
+                if (el) el.textContent = mode.toUpperCase();
+            });
+
+            window.electronAPI.onScreenshotCaptured((_evt, payload) => {
+                console.log('📸 Screenshot captured, auto-opening overlay');
+
+                // Auto-expand the overlay when screenshot is taken
+                if (!this.isExpanded) {
+                    this.expandPanel();
+                }
+
+                // Show enhanced loading state for screenshot processing
+                this.showLoadingState('Processing screenshot...', 'Analyzing content and generating recommendations');
+
+                // prepend new thumbnail into overlay gallery
+                const list = document.getElementById('overlay-shots');
+                if (!list) return;
+                const item = document.createElement('img');
+                item.src = `file://${payload.filePath}`;
+                item.alt = payload.filename;
+                item.className = 'overlay-thumb';
+                item.style.width = '60px';
+                item.style.height = '40px';
+                item.style.objectFit = 'cover';
+                item.style.borderRadius = '4px';
+                item.style.margin = '2px';
+                list.prepend(item);
+
+                // Update screenshot count
+                const count = list.children.length;
+                const countEl = document.getElementById('screenshot-count');
+                if (countEl) {
+                    countEl.textContent = `${count} screenshot${count !== 1 ? 's' : ''}`;
+                }
+
+                // Request analysis of the new screenshot
+                setTimeout(() => {
+                    this.updateScreenshotGallery();
+                }, 500);
+            });
+
+            window.electronAPI.onSessionUpdated((_data) => {
+                // (Optional) flash a subtle "saved" indicator on the overlay
+                const tick = document.getElementById('overlay-saved');
+                if (!tick) return;
+                tick.classList.add('show');
+                setTimeout(() => tick.classList.remove('show'), 1200);
+            });
+        } else {
+            // Fallback to direct IPC if electronAPI not available
+            ipcRenderer.on('mode-changed', (_event, mode) => {
+                const el = document.getElementById('overlay-mode');
+                if (el) el.textContent = mode.toUpperCase();
+            });
+
+            ipcRenderer.on('screenshot-captured', (_event, payload) => {
+                console.log('📸 Screenshot captured via IPC, auto-opening overlay');
+
+                // Auto-expand the overlay when screenshot is taken
+                if (!this.isExpanded) {
+                    this.expandPanel();
+                }
+
+                // Show enhanced loading state for screenshot processing
+                this.showLoadingState('Processing screenshot...', 'Analyzing content and generating recommendations');
+
+                const list = document.getElementById('overlay-shots');
+                if (!list) return;
+                const item = document.createElement('img');
+                item.src = `file://${payload.filePath}`;
+                item.alt = payload.filename;
+                item.className = 'overlay-thumb';
+                item.style.width = '60px';
+                item.style.height = '40px';
+                item.style.objectFit = 'cover';
+                item.style.borderRadius = '4px';
+                item.style.margin = '2px';
+                list.prepend(item);
+
+                // Update screenshot count
+                const count = list.children.length;
+                const countEl = document.getElementById('screenshot-count');
+                if (countEl) {
+                    countEl.textContent = `${count} screenshot${count !== 1 ? 's' : ''}`;
+                }
+
+                // Request analysis of the new screenshot
+                setTimeout(() => {
+                    this.updateScreenshotGallery();
+                }, 500);
+            });
+
+            ipcRenderer.on('session-updated', (_event, _data) => {
+                const tick = document.getElementById('overlay-saved');
+                if (!tick) return;
+                tick.classList.add('show');
+                setTimeout(() => tick.classList.remove('show'), 1200);
+            });
         }
     }
 }
@@ -1049,11 +1328,23 @@ window.addEventListener('blur', () => {
     if (taskSequence && taskSequence.classList.contains('active')) {
         return;
     }
-    
+
+    // Don't dismiss if currently processing
+    const overlay = document.querySelector('.overlay-container');
+    if (overlay && overlay.isProcessing) {
+        return;
+    }
+
+    // Don't dismiss if loading state is visible
+    const loadingState = document.getElementById('loading-state');
+    if (loadingState && loadingState.style.display !== 'none') {
+        return;
+    }
+
     // Dismiss overlay when window loses focus
     setTimeout(() => {
         if (document.hasFocus()) return;
-        
+
         ipcRenderer.invoke('dismiss-overlay').catch(console.error);
     }, 1000);
 });
