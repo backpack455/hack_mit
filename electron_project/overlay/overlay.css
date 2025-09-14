@@ -39,6 +39,108 @@
     --spacing-xl: 3rem;
 }
 
+/* Agentic Result Styles */
+.agentic-result {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--surface-elevated);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--borders);
+}
+
+.agentic-result .result-header {
+    color: var(--success);
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.95rem;
+}
+
+.agentic-result .result-content {
+    color: var(--text-primary);
+    line-height: 1.5;
+    font-size: 0.9rem;
+}
+
+.agentic-result .result-content a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: var(--transition);
+}
+
+.agentic-result .result-content a:hover {
+    border-bottom-color: var(--accent);
+}
+
+.agentic-result .result-content h1,
+.agentic-result .result-content h2,
+.agentic-result .result-content h3 {
+    color: var(--text-primary);
+    margin: var(--spacing-xs) 0;
+    font-weight: 600;
+}
+
+.agentic-result .result-content ul {
+    margin: var(--spacing-xs) 0;
+    padding-left: var(--spacing-sm);
+}
+
+.agentic-result .result-content li {
+    margin: 0.25rem 0;
+}
+
+.agentic-result .result-content code {
+    background: var(--bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--primary);
+}
+
+.agentic-result .result-content pre {
+    background: var(--bg);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    overflow-x: auto;
+    margin: var(--spacing-xs) 0;
+}
+
+.agentic-result .result-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.agentic-error {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: rgba(249, 125, 125, 0.1);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--danger);
+}
+
+.agentic-error .error-header {
+    color: var(--danger);
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.95rem;
+}
+
+.agentic-error .error-content {
+    color: var(--text-muted);
+    line-height: 1.5;
+    font-size: 0.9rem;
+}
+
+.task-sequence.results-ready {
+    border-color: var(--success);
+}
+
+.task-sequence.results-ready .task-status-bar .status-indicator.completed {
+    background: var(--success);
+    box-shadow: 0 0 0 2px rgba(105, 211, 155, 0.2);
+}
+
 body {
     font-family: var(--font-primary);
     font-weight: 400;

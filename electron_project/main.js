@@ -784,13 +784,16 @@ ipcMain.handle('open-screenshot-folder', (event, filePath) => {
 // URL Context Retrieval Handlers
 const ContextService = require('./services/contextService');
 const OverlayService = require('./services/overlayService');
+const AgenticPipelineService = require('./services/agenticPipelineService');
 let contextService;
 let overlayService;
+let agenticPipelineService;
 
 // Initialize context service and overlay service
 try {
   contextService = new ContextService();
   overlayService = new OverlayService();
+  agenticPipelineService = new AgenticPipelineService();
   console.log('✅ Services initialized successfully');
   // IPC Handlers for URL Context Retrieval
   ipcMain.handle('retrieve-url-context', async (event, url, query) => {
@@ -943,5 +946,70 @@ app.on('browser-window-focus', () => {
 app.on('browser-window-blur', () => {
   if (mainWindow && isGestureMode) {
     mainWindow.webContents.send('focus-changed', false);
+  }
+});
+
+// Agentic Pipeline IPC Handlers
+ipcMain.handle('generate-agentic-recommendations', async () => {
+  try {
+    if (!agenticPipelineService) {
+      throw new Error('Agentic Pipeline Service not initialized');
+    }
+    return await agenticPipelineService.generateSmartRecommendations();
+  } catch (error) {
+    console.error('❌ Error generating agentic recommendations:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('execute-agentic-action', async (event, actionId) => {
+  try {
+    if (!agenticPipelineService) {
+      throw new Error('Agentic Pipeline Service not initialized');
+    }
+    return await agenticPipelineService.executeAgenticAction(actionId);
+  } catch (error) {
+    console.error('❌ Error executing agentic action:', error);
+    return {
+      type: 'error',
+      content: `Failed to execute action: ${error.message}`,
+      timestamp: new Date().toISOString()
+    };
+  }
+});
+
+ipcMain.handle('get-agentic-result', async (event, actionId) => {
+  try {
+    if (!agenticPipelineService) {
+      return null;
+    }
+    return agenticPipelineService.getExecutionResult(actionId);
+  } catch (error) {
+    console.error('❌ Error getting agentic result:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('refresh-agentic-recommendations', async () => {
+  try {
+    if (!agenticPipelineService) {
+      throw new Error('Agentic Pipeline Service not initialized');
+    }
+    return await agenticPipelineService.refreshRecommendations();
+  } catch (error) {
+    console.error('❌ Error refreshing recommendations:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('get-task-progress', async (event, actionId) => {
+  try {
+    if (!agenticPipelineService) {
+      return { status: 'not_started', progress: 0 };
+    }
+    return agenticPipelineService.getTaskProgress(actionId);
+  } catch (error) {
+    console.error('❌ Error getting task progress:', error);
+    return { status: 'error', progress: 0, error: error.message };
   }
 });

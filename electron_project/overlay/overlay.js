@@ -426,27 +426,30 @@ class OverlayUI {
 
     async executeAction(actionId) {
         try {
-            console.log(`🎯 Executing action: ${actionId}`);
+            console.log(`🎯 Executing agentic action: ${actionId}`);
             
-            // Show task sequence instead of dismissing overlay
-            this.showTaskSequence(actionId);
+            // Show task sequence for agentic execution
+            this.showAgenticTaskSequence(actionId);
             
-            // Mock execution for now
-            const success = await ipcRenderer.invoke('execute-overlay-action', actionId);
+            // Execute agentic action via IPC
+            const result = await ipcRenderer.invoke('execute-agentic-action', actionId);
             
-            if (success) {
-                console.log(`✅ Action completed: ${actionId}`);
+            if (result && result.type === 'success') {
+                console.log(`✅ Agentic action completed: ${actionId}`);
+                this.displayAgenticResult(actionId, result);
             } else {
-                console.error(`❌ Action failed: ${actionId}`);
+                console.error(`❌ Agentic action failed: ${actionId}`, result);
+                this.displayAgenticError(actionId, result);
             }
 
         } catch (error) {
-            console.error('❌ Error executing action:', error);
+            console.error('❌ Error executing agentic action:', error);
+            this.displayAgenticError(actionId, { type: 'error', content: error.message });
         }
     }
 
-    showTaskSequence(actionId) {
-        console.log(`📋 Showing task sequence for: ${actionId}`);
+    showAgenticTaskSequence(actionId) {
+        console.log(`📋 Showing agentic task sequence for: ${actionId}`);
         
         const taskSequence = document.getElementById('task-sequence');
         const sequenceTitle = document.getElementById('sequence-title');
@@ -457,6 +460,221 @@ class OverlayUI {
         const statusIndicator = document.getElementById('status-indicator');
         const currentStep = document.getElementById('current-step');
         
+        if (!taskSequence) {
+            console.error('❌ Task sequence element not found');
+            return;
+        }
+        
+        // Initialize agentic task state
+        this.currentTaskState = {
+            id: actionId,
+            status: 'running',
+            currentStep: 0,
+            isPaused: false,
+            isCancelled: false
+        };
+        
+        // Set up task controls
+        this.setupTaskControls();
+        
+        // Define agentic task sequences
+        const agenticTasks = [
+            'Analyzing context with Claude AI',
+            'Matching task to best MCP agents',
+            'Initializing Dedalus runner',
+            'Executing with selected agents',
+            'Processing and formatting results'
+        ];
+        
+        // Set title and show sequence
+        sequenceTitle.textContent = 'Running Agentic Task';
+        sequenceProgress.textContent = `0/${agenticTasks.length}`;
+        taskSequence.classList.add('active');
+        
+        // Clear and populate task list
+        taskList.innerHTML = '';
+        agenticTasks.forEach((task, index) => {
+            const taskItem = document.createElement('li');
+            taskItem.className = 'task-item';
+            taskItem.innerHTML = `
+                <div class="task-status"></div>
+                <span class="task-text">${task}</span>
+            `;
+            taskList.appendChild(taskItem);
+        });
+        
+        // Update status bar
+        statusText.textContent = 'Running';
+        statusIndicator.className = 'status-indicator';
+        currentStep.textContent = `Step 1 of ${agenticTasks.length}`;
+        
+        // Clear output
+        taskOutput.innerHTML = '<div>🚀 Initializing agentic pipeline...</div>';
+        
+        // Simulate task execution progress
+        this.simulateAgenticExecution(agenticTasks, taskOutput, sequenceProgress);
+    }
+    
+    displayAgenticResult(actionId, result) {
+        console.log(`📊 Displaying agentic result for: ${actionId}`);
+        
+        const taskOutput = document.getElementById('task-output');
+        const statusText = document.getElementById('status-text');
+        const statusIndicator = document.getElementById('status-indicator');
+        const suspendBtn = document.getElementById('suspend-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const closeTaskBtn = document.getElementById('close-task-btn');
+        
+        if (!taskOutput) return;
+        
+        // Update status to completed
+        this.currentTaskState.status = 'completed';
+        statusText.textContent = 'Completed';
+        statusIndicator.className = 'status-indicator completed';
+        suspendBtn.disabled = true;
+        cancelBtn.disabled = true;
+        closeTaskBtn.style.display = 'block';
+        
+        // Format and display the result
+        const formattedResult = this.formatAgenticResult(result);
+        
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'agentic-result';
+        resultDiv.innerHTML = `
+            <div class="result-header">
+                <strong>✅ Task completed successfully!</strong>
+            </div>
+            <div class="result-content">
+                ${formattedResult.html}
+            </div>
+        `;
+        
+        taskOutput.appendChild(resultDiv);
+        taskOutput.scrollTop = taskOutput.scrollHeight;
+        
+        // Expand the overlay if needed to show results
+        this.expandForResults();
+    }
+    
+    displayAgenticError(actionId, result) {
+        console.log(`❌ Displaying agentic error for: ${actionId}`);
+        
+        const taskOutput = document.getElementById('task-output');
+        const statusText = document.getElementById('status-text');
+        const statusIndicator = document.getElementById('status-indicator');
+        const suspendBtn = document.getElementById('suspend-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const closeTaskBtn = document.getElementById('close-task-btn');
+        
+        if (!taskOutput) return;
+        
+        // Update status to failed
+        this.currentTaskState.status = 'failed';
+        statusText.textContent = 'Failed';
+        statusIndicator.className = 'status-indicator cancelled';
+        suspendBtn.disabled = true;
+        cancelBtn.disabled = true;
+        closeTaskBtn.style.display = 'block';
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'agentic-error';
+        errorDiv.innerHTML = `
+            <div class="error-header">
+                <strong>❌ Task failed</strong>
+            </div>
+            <div class="error-content">
+                ${result.content || 'Unknown error occurred'}
+            </div>
+        `;
+        
+        taskOutput.appendChild(errorDiv);
+        taskOutput.scrollTop = taskOutput.scrollHeight;
+    }
+    
+    formatAgenticResult(result) {
+        if (!result || !result.content) {
+            return { html: 'No result content available' };
+        }
+        
+        let html = result.content;
+        
+        // If it's already HTML, use it directly
+        if (html.includes('<') && html.includes('>')) {
+            return { html };
+        }
+        
+        // Convert plain text to HTML with basic formatting
+        html = html.replace(/\n/g, '<br>');
+        
+        // Make URLs clickable
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        html = html.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        return { html };
+    }
+    
+    expandForResults() {
+        // Ensure the overlay panel is expanded to show results
+        if (!this.isExpanded) {
+            this.expandPanel();
+        }
+        
+        // Add some visual indication that results are ready
+        const taskSequence = document.getElementById('task-sequence');
+        if (taskSequence) {
+            taskSequence.classList.add('results-ready');
+        }
+    }
+    
+    async simulateAgenticExecution(tasks, outputElement, progressElement) {
+        const taskItems = document.querySelectorAll('.task-item');
+        let completedTasks = 0;
+        
+        for (let i = 0; i < tasks.length; i++) {
+            // Check if task is cancelled
+            if (this.currentTaskState && this.currentTaskState.isCancelled) {
+                break;
+            }
+            
+            // Wait while paused
+            while (this.currentTaskState && this.currentTaskState.isPaused) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Update current step
+            this.currentTaskState.currentStep = i + 1;
+            const currentStep = document.getElementById('current-step');
+            if (currentStep) {
+                currentStep.textContent = `Step ${i + 1} of ${tasks.length}`;
+            }
+            
+            // Mark current task as active
+            taskItems[i].classList.add('active');
+            
+            // Add progress output
+            const outputLine = document.createElement('div');
+            outputLine.textContent = `🔄 ${tasks[i]}...`;
+            outputElement.appendChild(outputLine);
+            outputElement.scrollTop = outputElement.scrollHeight;
+            
+            // Simulate processing time
+            const processingTime = 1000 + Math.random() * 2000;
+            await new Promise(resolve => setTimeout(resolve, processingTime));
+            
+            // Mark as completed
+            taskItems[i].classList.remove('active');
+            taskItems[i].classList.add('completed');
+            completedTasks++;
+            
+            // Update progress
+            progressElement.textContent = `${completedTasks}/${tasks.length}`;
+            
+            // Update output to show completion
+            outputLine.textContent = `✅ ${tasks[i]} completed`;
+        }
+    }
+
+    showTaskSequence(actionId) {
         if (!taskSequence) {
             console.error('❌ Task sequence element not found');
             return;

@@ -1,0 +1,85 @@
+{
+    "agents": [
+      {
+        "tag": "open-meteo-mcp",
+        "description": "Comprehensive weather data from multiple global meteorological services without API keys."
+      },
+      {
+        "tag": "sonar",
+        "description": "Enable AI assistants to perform web searches using Perplexity’s Sonar API."
+      },
+      {
+        "tag": "ticketmaster-mcp",
+        "description": "Discover events, venues, and attractions through the Ticketmaster Discovery API."
+      },
+      {
+        "tag": "OnKernelDedalusMCP",
+        "description": "Deploy and scale AI web agents."
+      },
+      {
+        "tag": "brave-search-mcp",
+        "description": "Integrate web and local search capabilities with Brave Search."
+      },
+      {
+        "tag": "foursquare-places-mcp",
+        "description": "Search for places and place recommendations from the Foursquare Places database."
+      },
+      {
+        "tag": "aws-documentation-mcp-server",
+        "description": "Access and search AWS documentation with intelligent comprehension."
+      },
+      {
+        "tag": "flight-search",
+        "description": "Real-time flight search with SerpAPI integration for AI assistants."
+      },
+      {
+        "tag": "tweet-mcp",
+        "description": "Y Combinator Tweet search for startup insights and community intelligence."
+      },
+      {
+        "tag": "yclistededalus",
+        "description": "Comprehensive Y Combinator startup database with advanced search and analytics."
+      },
+      {
+        "tag": "agentmail-mcp",
+        "description": "Toolset for managing email communications via the AgentMail API."
+      },
+      {
+        "tag": "mcp-linear",
+        "description": "Complete Linear project management integration for AI-powered workflow automation."
+      },
+      {
+        "tag": "airtable-mcp-server",
+        "description": "Linear inspired project management integration for AI-powered workflow automation."
+      },
+      {
+        "tag": "linkedin-scraper-mcp",
+        "description": "LinkedIn profile data extraction for recruitment and professional networking."
+      },
+      {
+        "tag": "exa-mcp",
+        "description": "Fast, intelligent web search and crawling."
+      },
+      {
+        "tag": "sequential-thinking",
+        "description": "An MCP server implementation that provides a tool for dynamic and reflective problem-solving through a structured thinking process."
+      },
+      {
+        "tag": "context7",
+        "description": "Fetch up-to-date, version-specific documentation and code examples directly into your prompts."
+      },
+      {
+        "tag": "general-mcp",
+        "description": "Essential meta data utility for AI agents requiring temporal context."
+      },
+      {
+        "tag": "notion-mcp",
+        "description": "Essential Notion workspace integration for AI-powered page management."
+      },
+      {
+        "tag": "hf-mcp",
+        "description": "Hugging Face Hub integration for AI model and dataset discovery."
+      }
+    ]
+}
+  

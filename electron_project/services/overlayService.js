@@ -2,6 +2,7 @@ const { ipcMain, globalShortcut, screen, desktopCapturer, BrowserWindow } = requ
 const path = require('path');
 const fs = require('fs').promises;
 const ScreenshotProcessingService = require('./screenshotProcessingService');
+const AgenticPipelineService = require('./agenticPipelineService');
 
 class OverlayService {
   constructor() {
@@ -13,6 +14,7 @@ class OverlayService {
     this.dismissTimeout = null;
     this.allowClose = false;
     this.screenshotProcessor = new ScreenshotProcessingService();
+    this.agenticPipeline = new AgenticPipelineService();
     this.currentSessionId = null;
   }
 
@@ -150,9 +152,9 @@ class OverlayService {
           // Add to context queue (screenshot already has path and dataURL)
           this.addToScreenshotQueue(screenshot);
           
-          // Generate actions based on processing results
-          const actions = this.generateActionsFromProcessing(processingResult.data);
-          console.log('🎯 Generated AI-powered actions:', actions.length);
+          // Generate smart agentic recommendations
+          const actions = await this.generateAgenticRecommendations();
+          console.log('🎯 Generated agentic recommendations:', actions.length);
           
           // Show overlay with actions
           console.log('🎨 Attempting to show overlay...');
@@ -161,7 +163,7 @@ class OverlayService {
           console.error('❌ Failed to process screenshot:', processingResult.error);
           // Fallback to basic screenshot handling (screenshot already has path and dataURL)
           this.addToScreenshotQueue(screenshot);
-          const actions = this.generateMockActions(screenshot);
+          const actions = await this.generateAgenticRecommendations(true); // fallback mode
           await this.showOverlay(actions);
         }
       } else {
@@ -183,26 +185,12 @@ class OverlayService {
         return;
       }
       
-      // For shortcuts, just show overlay with last actions (no screenshot)
-      if (this.screenshotQueue.length > 0) {
-        const lastScreenshot = this.screenshotQueue[this.screenshotQueue.length - 1];
-        const actions = this.generateMockActions(lastScreenshot);
-        console.log('🎯 Using cached actions:', actions.length);
-        
-        console.log('🎨 Attempting to show overlay...');
-        await this.showOverlay(actions);
-      } else {
-        // No cached screenshots, show default actions
-        const defaultActions = [
-          { id: 'extract_text', title: 'Extract Text', description: 'Extract text from screen content', icon: 'text', confidence: 0.85 },
-          { id: 'analyze_content', title: 'Analyze Content', description: 'Analyze visual elements and layout', icon: 'analyze', confidence: 0.90 },
-          { id: 'create_summary', title: 'Create Summary', description: 'Generate summary of visible content', icon: 'summary', confidence: 0.80 }
-        ];
-        
-        console.log('🎯 Using default actions:', defaultActions.length);
-        console.log('🎨 Attempting to show overlay...');
-        await this.showOverlay(defaultActions);
-      }
+      // For shortcuts, generate fresh agentic recommendations
+      const actions = await this.generateAgenticRecommendations();
+      console.log('🎯 Generated agentic recommendations for shortcut:', actions.length);
+      
+      console.log('🎨 Attempting to show overlay...');
+      await this.showOverlay(actions);
       
     } catch (error) {
       console.error('❌ Error handling shortcut toggle:', error);
@@ -340,36 +328,6 @@ class OverlayService {
       .slice(0, 4);
   }
   
-  /**
-   * Generate mock actions for demonstration (fallback)
-   */
-  generateMockActions(screenshot) {
-    const mockActions = [
-      {
-        id: 'extract_text',
-        title: 'Extract Text',
-        description: 'Extract and copy text from the screenshot',
-        icon: 'text',
-        confidence: 0.9
-      },
-      {
-        id: 'analyze_content',
-        title: 'Analyze Content',
-        description: 'Analyze the content and provide insights',
-        icon: 'analyze',
-        confidence: 0.8
-      },
-      {
-        id: 'create_summary',
-        title: 'Create Summary',
-        description: 'Generate a summary of the visible content',
-        icon: 'summary',
-        confidence: 0.7
-      }
-    ];
-
-    return mockActions;
-  }
 
   /**
    * Show overlay window with actions
@@ -537,14 +495,15 @@ class OverlayService {
     });
 
     // Handle actions for specific screenshot
-    ipcMain.handle('get-actions-for-screenshot', (event, index) => {
+    ipcMain.handle('get-actions-for-screenshot', async (event, index) => {
       if (index >= 0 && index < this.screenshotQueue.length) {
         const screenshot = this.screenshotQueue[index];
         // Use AI-powered actions if processing results are available
         if (screenshot.processingResult) {
           return this.generateActionsFromProcessing(screenshot.processingResult);
         } else {
-          return this.generateMockActions(screenshot);
+          // Generate agentic recommendations instead of mock actions
+          return await this.generateAgenticRecommendations();
         }
       }
       return null;
@@ -729,6 +688,53 @@ class OverlayService {
     }
     
     return null;
+  }
+
+  /**
+   * Generate agentic recommendations using the pipeline service
+   */
+  async generateAgenticRecommendations(fallbackMode = false) {
+    try {
+      if (fallbackMode) {
+        // Return fallback actions when context analysis fails
+        return [
+          {
+            id: 'fallback_search',
+            title: 'Search for Information',
+            description: 'Search the web for relevant information based on your current context',
+            icon: 'analyze',
+            confidence: 0.7
+          },
+          {
+            id: 'fallback_analyze',
+            title: 'Analyze Current Context',
+            description: 'Use AI to analyze and provide insights on your current work',
+            icon: 'analyze',
+            confidence: 0.6
+          },
+          {
+            id: 'fallback_documentation',
+            title: 'Find Documentation',
+            description: 'Search for relevant documentation and code examples',
+            icon: 'document',
+            confidence: 0.5
+          }
+        ];
+      }
+
+      // Use the agentic pipeline service directly
+      const recommendations = await this.agenticPipeline.generateSmartRecommendations();
+      if (recommendations && recommendations.length > 0) {
+        return recommendations;
+      }
+
+      // If no recommendations, return fallback
+      return await this.generateAgenticRecommendations(true);
+      
+    } catch (error) {
+      console.error('❌ Error generating agentic recommendations:', error);
+      return await this.generateAgenticRecommendations(true);
+    }
   }
 
   /**
