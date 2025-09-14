@@ -23,6 +23,9 @@ class OverlayUI {
         this.actionsContainer = document.getElementById('actions-container');
         this.closeBtn = document.getElementById('close-btn');
         this.overlayContainer = document.querySelector('.overlay-container');
+        this.screenshotGallery = document.getElementById('screenshot-gallery');
+        this.screenshotScroll = document.getElementById('screenshot-scroll');
+        this.screenshotCount = document.getElementById('screenshot-count');
 
         // Set up event listeners
         this.setupEventListeners();
@@ -222,11 +225,110 @@ class OverlayUI {
     showActions(actions) {
         this.actions = actions;
         this.renderActions();
+        this.updateScreenshotGallery();
         
         // Show indicator initially
         this.indicator.style.display = 'flex';
         
         console.log('🎯 Actions received:', actions.length);
+    }
+
+    updateScreenshotGallery() {
+        // Request screenshot data from main process
+        ipcRenderer.invoke('get-screenshot-queue').then(screenshots => {
+            this.renderScreenshots(screenshots);
+        }).catch(error => {
+            console.error('❌ Error getting screenshots:', error);
+        });
+    }
+
+    renderScreenshots(screenshots) {
+        // Clear existing screenshots
+        this.screenshotScroll.innerHTML = '';
+        
+        // Update count
+        this.screenshotCount.textContent = `${screenshots.length} screenshot${screenshots.length !== 1 ? 's' : ''}`;
+        
+        // Hide gallery if no screenshots
+        if (screenshots.length === 0) {
+            this.screenshotGallery.style.display = 'none';
+            return;
+        }
+        
+        this.screenshotGallery.style.display = 'block';
+        
+        // Create screenshot items
+        screenshots.forEach((screenshot, index) => {
+            const screenshotItem = this.createScreenshotItem(screenshot, index);
+            this.screenshotScroll.appendChild(screenshotItem);
+        });
+        
+        // Mark the most recent screenshot as active
+        if (screenshots.length > 0) {
+            const lastItem = this.screenshotScroll.lastElementChild;
+            if (lastItem) {
+                lastItem.classList.add('active');
+            }
+        }
+    }
+
+    createScreenshotItem(screenshot, index) {
+        const item = document.createElement('div');
+        item.className = 'screenshot-item';
+        item.setAttribute('data-index', index);
+        
+        // Create image element
+        const img = document.createElement('img');
+        img.src = screenshot.dataURL || screenshot.path || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMTIwIDgwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIGZpbGw9IiMxRTIyMjUiLz48dGV4dCB4PSI2MCIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNCNUJCQzQiIGZvbnQtc2l6ZT0iMTIiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+        img.alt = `Screenshot ${index + 1}`;
+        img.onerror = () => {
+            // Fallback to placeholder if image fails to load
+            img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMTIwIDgwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIGZpbGw9IiMxRTIyMjUiLz48dGV4dCB4PSI2MCIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNCNUJCQzQiIGZvbnQtc2l6ZT0iMTIiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+        };
+        
+        // Create overlay with timestamp
+        const overlay = document.createElement('div');
+        overlay.className = 'screenshot-overlay';
+        
+        const timestamp = new Date(screenshot.timestamp || Date.now());
+        const timeStr = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        overlay.innerHTML = `
+            <div>Screenshot ${index + 1}</div>
+            <div class="screenshot-timestamp">${timeStr}</div>
+        `;
+        
+        item.appendChild(img);
+        item.appendChild(overlay);
+        
+        // Add click handler
+        item.addEventListener('click', () => {
+            this.selectScreenshot(index);
+        });
+        
+        return item;
+    }
+
+    selectScreenshot(index) {
+        // Remove active class from all items
+        const items = this.screenshotScroll.querySelectorAll('.screenshot-item');
+        items.forEach(item => item.classList.remove('active'));
+        
+        // Add active class to selected item
+        const selectedItem = this.screenshotScroll.querySelector(`[data-index="${index}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+        
+        // Request actions for this screenshot
+        ipcRenderer.invoke('get-actions-for-screenshot', index).then(actions => {
+            if (actions) {
+                this.actions = actions;
+                this.renderActions();
+            }
+        }).catch(error => {
+            console.error('❌ Error getting actions for screenshot:', error);
+        });
     }
 
     renderActions() {

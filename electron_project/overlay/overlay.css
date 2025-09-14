@@ -223,6 +223,107 @@ body {
     transform: translateY(-1px);
 }
 
+/* Screenshot Gallery */
+.screenshot-gallery {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--borders);
+}
+
+.gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+}
+
+.gallery-title {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.screenshot-count {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.screenshot-scroll {
+    display: flex;
+    gap: var(--spacing-sm);
+    overflow-x: auto;
+    padding: var(--spacing-xs) 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--borders) transparent;
+}
+
+.screenshot-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.screenshot-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.screenshot-scroll::-webkit-scrollbar-thumb {
+    background: var(--borders);
+    border-radius: 2px;
+}
+
+.screenshot-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
+
+.screenshot-item {
+    flex-shrink: 0;
+    width: 120px;
+    height: 80px;
+    background: var(--surface-elevated);
+    border: 2px solid var(--borders);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.screenshot-item:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.screenshot-item.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(224, 180, 101, 0.3);
+}
+
+.screenshot-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: calc(var(--border-radius-sm) - 2px);
+}
+
+.screenshot-item .screenshot-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    color: white;
+    padding: var(--spacing-xs);
+    font-size: 0.7rem;
+    text-align: center;
+}
+
+.screenshot-item .screenshot-timestamp {
+    font-size: 0.65rem;
+    opacity: 0.8;
+}
+
 .actions-container {
     display: flex;
     flex-direction: column;

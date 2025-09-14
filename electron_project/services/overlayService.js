@@ -410,6 +410,24 @@ class OverlayService {
       return { success: true };
     });
 
+    // Handle screenshot queue requests
+    ipcMain.handle('get-screenshot-queue', () => {
+      return this.screenshotQueue.map((screenshot, index) => ({
+        ...screenshot,
+        index,
+        timestamp: screenshot.timestamp || Date.now()
+      }));
+    });
+
+    // Handle actions for specific screenshot
+    ipcMain.handle('get-actions-for-screenshot', (event, index) => {
+      if (index >= 0 && index < this.screenshotQueue.length) {
+        const screenshot = this.screenshotQueue[index];
+        return this.generateMockActions(screenshot);
+      }
+      return null;
+    });
+
     // Handle hover events to reset timeout
     ipcMain.handle('overlay-hover', () => {
       // Reset dismiss timeout on hover

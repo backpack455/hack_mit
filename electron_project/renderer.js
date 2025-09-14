@@ -5,37 +5,7 @@ let screenshots = [];
 let currentMode = 'study';
 
 // Lightweight "DB" stub for demo sessions
-const sessions = [
-  {
-    id: 's1',
-    mode: 'study',
-    title: 'Linear Algebra Lecture 3',
-    created_at: '2025-09-13T17:45:00Z',
-    artifacts: [
-      { kind: 'screenshot', path: 'file:///path/to/img1.png', meta_json: {} },
-      { kind: 'transcript', path: 'file:///path/to/t1.txt', meta_json: {} },
-    ],
-  },
-  {
-    id: 's2',
-    mode: 'work',
-    title: 'Product Strategy Meeting',
-    created_at: '2025-09-13T14:30:00Z',
-    artifacts: [
-      { kind: 'screenshot', path: 'file:///path/to/img2.png', meta_json: {} },
-      { kind: 'transcript', path: 'file:///path/to/t2.txt', meta_json: {} },
-    ],
-  },
-  {
-    id: 's3',
-    mode: 'research',
-    title: 'AI Ethics Research',
-    created_at: '2025-09-13T10:15:00Z',
-    artifacts: [
-      { kind: 'transcript', path: 'file:///path/to/t3.txt', meta_json: {} },
-    ],
-  },
-];
+const sessions = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
