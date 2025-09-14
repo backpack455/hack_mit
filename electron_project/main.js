@@ -245,15 +245,33 @@ app.on('window-all-closed', () => {
 });
 
 // Clean up gesture detector on quit
-app.on('before-quit', () => {
-  if (gestureProcess) {
-    gestureProcess.stdin.write(JSON.stringify({action: 'quit'}) + '\n');
-    gestureProcess.kill();
-  }
+app.on('before-quit', async (event) => {
+  console.log('🔄 App is quitting, cleaning up...');
   
-  // Clean up overlay service
-  if (overlayService) {
-    overlayService.cleanup();
+  // Prevent immediate quit to allow async cleanup
+  event.preventDefault();
+  
+  try {
+    // Unregister all global shortcuts
+    globalShortcut.unregisterAll();
+    
+    // Stop gesture detection
+    if (isGestureMode) {
+      stopGestureDetection();
+    }
+    
+    // Clean up overlay service with session cleanup
+    if (overlayService) {
+      await overlayService.cleanup();
+      console.log('✅ Overlay service cleanup completed');
+    }
+    
+    console.log('✅ All cleanup completed, quitting app');
+  } catch (error) {
+    console.error('❌ Error during app cleanup:', error);
+  } finally {
+    // Force quit after cleanup
+    app.exit(0);
   }
 });
 
@@ -315,21 +333,9 @@ async function captureScreenshot() {
       });
     }
     
-    // Show overlay when screenshot is captured
-    if (overlayService && !overlayService.isOverlayVisible) {
-      console.log('📸 Screenshot captured, showing overlay...');
-      // Create a mock screenshot object for overlay
-      const mockScreenshot = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        filename: filename,
-        filePath: filePath
-      };
-      
-      overlayService.addToScreenshotQueue(mockScreenshot);
-      const actions = overlayService.generateMockActions(mockScreenshot);
-      overlayService.showOverlay(actions);
-    }
+    // Note: Overlay handling is now done by overlayService.handleCircleGesture()
+    // This function is now only used for manual screenshot capture (Cmd+Shift+S)
+    // The gesture-based screenshots are handled entirely by the overlay service
     
     return filename;
   } catch (error) {
@@ -799,7 +805,7 @@ function startPythonGestureDetector(scriptPath) {
   }
 }
 
-function handleGestureMessage(message) {
+async function handleGestureMessage(message) {
   switch (message.type) {
     case 'started':
       console.log('Global gesture detection active');
@@ -808,7 +814,15 @@ function handleGestureMessage(message) {
     case 'gesture_detected':
       if (isGestureMode) {
         console.log('Global circular gesture detected!');
-        captureScreenshot();
+        console.log('Capturing screenshot...');
+        
+        // Trigger overlay service - this handles both screenshot capture and processing
+        if (overlayService) {
+          await overlayService.handleCircleGesture();
+        }
+        
+        // Don't call the old captureScreenshot() function anymore
+        // The overlay service handles everything now
       }
       break;
       
@@ -984,6 +998,22 @@ ipcMain.handle('capture-screenshot', () => {
 
 ipcMain.handle('get-gesture-status', () => {
   return isGestureMode;
+});
+
+// IPC handler to get sessions for Session History page
+ipcMain.handle('get-sessions', () => {
+  if (overlayService) {
+    return overlayService.getSessionsForHistory();
+  }
+  return [];
+});
+
+// IPC handler to get session details
+ipcMain.handle('get-session-details', (event, sessionId) => {
+  if (overlayService) {
+    return overlayService.getSessionDetails(sessionId);
+  }
+  return null;
 });
 
 // IPC handlers for mode and after-capture action are already defined in app.whenReady()

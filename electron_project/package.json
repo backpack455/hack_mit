@@ -18,8 +18,10 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.62.0",
     "@google/genai": "^1.19.0",
-    "axios": "^1.12.1",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.6.8",
     "canvas": "^3.2.0",
     "cheerio": "^1.1.2",
     "dotenv": "^17.2.2",
