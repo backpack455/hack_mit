@@ -1,6 +1,4 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const fs = require('fs');
-const path = require('path');
 
 // existing API functions for screenshot, gestures...
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -37,6 +35,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+  
+  // Sessions API (NEW)
+  getSessions: (mode) => ipcRenderer.invoke('get-sessions', mode),
+  getArtifacts: (sessionId) => ipcRenderer.invoke('get-artifacts', sessionId),
+  onSessionUpdated: (callback) => ipcRenderer.on('session-updated', (_e, data) => callback(data)),
   
   // URL Context Retrieval
   retrieveUrlContext: (url, query) => ipcRenderer.invoke('retrieve-url-context', url, query),
