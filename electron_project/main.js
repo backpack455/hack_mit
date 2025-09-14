@@ -164,7 +164,7 @@ function createAppMenu() {
 }
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set up IPC handlers for mode management
   ipcMain.handle('set-mode', (event, mode) => {
     if (['study', 'work', 'research'].includes(mode)) {
@@ -647,13 +647,26 @@ let gestureProcess = null;
 
 function startPythonGestureDetector(scriptPath) {
   try {
-    // Find available Python executable
-    const candidates = [
+    // Use virtual environment Python first - try multiple possible executables
+    const venvPaths = [
       path.join(__dirname, 'venv', 'bin', 'python'),
-      '/usr/bin/python3',
-      '/opt/homebrew/bin/python3'
+      path.join(__dirname, 'venv', 'bin', 'python3'),
+      path.join(__dirname, 'venv', 'bin', 'python3.12')
     ];
-    const pythonExec = candidates.find(p => fs.existsSync(p)) || 'python3';
+    
+    let pythonExec = 'python3';
+    
+    for (const venvPath of venvPaths) {
+      if (fs.existsSync(venvPath)) {
+        pythonExec = venvPath;
+        console.log('✅ Using virtual environment Python:', venvPath);
+        break;
+      }
+    }
+    
+    if (!venvPaths.some(p => fs.existsSync(p))) {
+      console.log('⚠️ Virtual environment not found, using system Python');
+    }
     
     console.log(`Using Python executable: ${pythonExec}`);
     gestureProcess = spawn(pythonExec, [scriptPath]);
@@ -888,26 +901,7 @@ ipcMain.handle('get-gesture-status', () => {
   return isGestureMode;
 });
 
-// NEW: IPC handlers for mode and after-capture action
-ipcMain.handle('get-mode', () => {
-  return currentMode;
-});
-
-ipcMain.handle('set-mode', (event, mode) => {
-  currentMode = mode;
-  updateTrayMenu();
-  return currentMode;
-});
-
-ipcMain.handle('get-after-capture-action', () => {
-  return afterCaptureAction;
-});
-
-ipcMain.handle('set-after-capture-action', (event, action) => {
-  afterCaptureAction = action;
-  updateTrayMenu();
-  return afterCaptureAction;
-});
+// IPC handlers for mode and after-capture action are already defined in app.whenReady()
 
 // Handle window focus for gesture detection
 app.on('browser-window-focus', () => {

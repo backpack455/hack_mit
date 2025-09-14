@@ -50,9 +50,9 @@ class OverlayService {
     for (const shortcut of shortcuts) {
       try {
         const success = globalShortcut.register(shortcut, () => {
-          console.log('🔄 Circle gesture detected via shortcut:', shortcut);
-          console.log('🎯 Triggering overlay display...');
-          this.handleCircleGesture();
+          console.log('🔄 Shortcut pressed:', shortcut);
+          console.log('🎯 Toggling overlay display...');
+          this.handleShortcutToggle();
         });
         
         if (success) {
@@ -122,6 +122,42 @@ class OverlayService {
       
     } catch (error) {
       console.error('❌ Error handling circle gesture:', error);
+      console.error('Stack:', error.stack);
+    }
+  }
+
+  async handleShortcutToggle() {
+    try {
+      // If overlay is visible, hide it (toggle off)
+      if (this.isOverlayVisible) {
+        console.log('🔄 Toggling overlay off...');
+        this.hideOverlay();
+        return;
+      }
+      
+      // For shortcuts, just show overlay with last actions (no screenshot)
+      if (this.screenshotQueue.length > 0) {
+        const lastScreenshot = this.screenshotQueue[this.screenshotQueue.length - 1];
+        const actions = this.generateMockActions(lastScreenshot);
+        console.log('🎯 Using cached actions:', actions.length);
+        
+        console.log('🎨 Attempting to show overlay...');
+        await this.showOverlay(actions);
+      } else {
+        // No cached screenshots, show default actions
+        const defaultActions = [
+          { id: 'extract_text', title: 'Extract Text', description: 'Extract text from screen content', icon: 'text', confidence: 0.85 },
+          { id: 'analyze_content', title: 'Analyze Content', description: 'Analyze visual elements and layout', icon: 'analyze', confidence: 0.90 },
+          { id: 'create_summary', title: 'Create Summary', description: 'Generate summary of visible content', icon: 'summary', confidence: 0.80 }
+        ];
+        
+        console.log('🎯 Using default actions:', defaultActions.length);
+        console.log('🎨 Attempting to show overlay...');
+        await this.showOverlay(defaultActions);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error handling shortcut toggle:', error);
       console.error('Stack:', error.stack);
     }
   }
@@ -359,8 +395,8 @@ class OverlayService {
     ipcMain.handle('execute-overlay-action', async (event, actionId) => {
       console.log(`🎯 Executing action: ${actionId}`);
       
-      // Hide overlay
-      this.hideOverlay();
+      // DON'T hide overlay - let it stay open for task sequence
+      // this.hideOverlay(); // REMOVED - overlay should stay open
       
       // Mock action execution (not connected to real automation yet)
       await this.executeAction(actionId);

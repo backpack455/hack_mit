@@ -7,39 +7,61 @@
     <link rel="stylesheet" href="overlay.css">
 </head>
 <body>
-    <div id="overlay-container" class="overlay-container">
-        <!-- Collapsed state - indicator -->
-        <div id="vipr-indicator" class="vipr-indicator" role="button" aria-label="VIPR Context Actions">
-            <div class="indicator-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                    <path d="M8 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
+    <div class="overlay-container">
+        <!-- Collapsed state - Clean Eye indicator -->
+        <div class="vipr-indicator" id="vipr-indicator">
+            <div class="indicator-icon"></div>
         </div>
-
-        <!-- Expanded state - action panel -->
-        <div id="vipr-panel" class="vipr-panel hidden" role="dialog" aria-label="VIPR Context Actions" aria-describedby="vipr-actions-description">
-            <div id="vipr-actions-description" class="sr-only">
-                Context-aware actions based on your current screen content
-            </div>
-            
+        
+        <!-- Expanded state - Enhanced Action panel -->
+        <div class="vipr-panel hidden" id="vipr-panel">
             <div class="panel-header">
-                <h3>Quick Actions</h3>
-                <button id="close-btn" class="close-btn" aria-label="Close overlay">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </button>
+                <h3 class="panel-title">VIPR Actions</h3>
+                <button class="close-btn" id="close-btn">×</button>
             </div>
             
-            <div id="actions-container" class="actions-container">
-                <!-- Actions will be dynamically inserted here -->
+            <div class="actions-container" id="actions-container">
+                <!-- Actions will be populated by JavaScript -->
+            </div>
+            
+            <!-- Task Sequence Display -->
+            <div class="task-sequence" id="task-sequence">
+                <!-- Task Status Bar -->
+                <div class="task-status-bar" id="task-status-bar">
+                    <div class="status-indicator" id="status-indicator"></div>
+                    <span class="status-text" id="status-text">Running</span>
+                    <span class="current-step" id="current-step">Step 1 of 5</span>
+                </div>
+                
+                <div class="sequence-header">
+                    <h4 class="sequence-title" id="sequence-title">Processing...</h4>
+                    <span class="sequence-progress" id="sequence-progress">0/0</span>
+                </div>
+                
+                <ul class="task-list" id="task-list">
+                    <!-- Task items will be populated by JavaScript -->
+                </ul>
+                
+                <div class="task-output" id="task-output">
+                    <div>Ready to execute...</div>
+                </div>
+                
+                <!-- Task Controls -->
+                <div class="task-controls" id="task-controls">
+                    <button class="control-btn suspend" id="suspend-btn">
+                        <span>⏸️</span> Suspend
+                    </button>
+                    <button class="control-btn cancel" id="cancel-btn">
+                        <span>❌</span> Cancel
+                    </button>
+                    <button class="control-btn" id="close-task-btn">
+                        <span>✅</span> Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-
+    
     <script src="overlay.js"></script>
 </body>
 </html>
