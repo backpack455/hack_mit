@@ -387,6 +387,9 @@ class OverlayUI {
         // Listen for actions from main process
         ipcRenderer.on('show-actions', (_, actions) => {
             this.actions = actions;
+            
+            // Hide loading state and show actions
+            this.hideLoadingState();
             this.renderActions();
             
             // Expand the panel when actions are received
@@ -549,14 +552,54 @@ class OverlayUI {
     }
 
     renderActions() {
-        // Clear existing actions
-        this.actionsContainer.innerHTML = '';
+        // Clear existing actions (but preserve loading state)
+        const actionButtons = this.actionsContainer.querySelectorAll('.action-button');
+        actionButtons.forEach(btn => btn.remove());
 
-        // Create action buttons
-        this.actions.forEach((action) => {
-            const actionButton = this.createActionButton(action);
-            this.actionsContainer.appendChild(actionButton);
-        });
+        if (this.actions.length === 0) {
+            // Show empty state
+            this.showEmptyState();
+        } else {
+            // Hide empty state and create action buttons
+            this.hideEmptyState();
+            this.actions.forEach((action) => {
+                const actionButton = this.createActionButton(action);
+                this.actionsContainer.appendChild(actionButton);
+            });
+        }
+    }
+
+    showLoadingState() {
+        const loadingState = document.getElementById('loading-state');
+        const emptyState = this.actionsContainer.querySelector('.empty-state');
+        
+        if (loadingState) {
+            loadingState.style.display = 'flex';
+        }
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+    }
+
+    hideLoadingState() {
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState) {
+            loadingState.style.display = 'none';
+        }
+    }
+
+    showEmptyState() {
+        const emptyState = this.actionsContainer.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.style.display = 'block';
+        }
+    }
+
+    hideEmptyState() {
+        const emptyState = this.actionsContainer.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
     }
 
     createActionButton(action) {
@@ -1215,8 +1258,10 @@ class OverlayUI {
         this.panel.setAttribute('aria-expanded', 'true');
         this.panel.focus();
         
-        // Actions are loaded via IPC from the main process
-        // No need to call loadActions() here
+        // Show loading state when panel first opens (if no actions yet)
+        if (this.actions.length === 0) {
+            this.showLoadingState();
+        }
     }
     
     collapsePanel() {

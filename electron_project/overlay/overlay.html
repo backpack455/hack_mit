@@ -43,7 +43,16 @@
             </div>
             
             <div class="actions-container" id="actions-container">
-                <!-- Actions will be populated by JavaScript -->
+                <!-- Loading state -->
+                <div class="loading-state" id="loading-state">
+                    <div class="loading-spinner">
+                        <div class="spinner-ring"></div>
+                    </div>
+                    <div class="loading-text">Analyzing context...</div>
+                    <div class="loading-subtext">Generating smart recommendations</div>
+                </div>
+                
+                <!-- Actions will be dynamically inserted here -->
                 <div class="empty-state">
                     <div class="empty-icon">👁️</div>
                     <p>No actions available</p>

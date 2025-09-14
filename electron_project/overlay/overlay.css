@@ -579,11 +579,53 @@ kbd {
     border-radius: 3px;
 }
 
+/* Loading state */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+}
+
+.loading-spinner {
+    margin-bottom: 16px;
+}
+
+.spinner-ring {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(224, 180, 101, 0.2);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.loading-subtext {
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
 /* Empty state */
 .empty-state {
     padding: 32px 24px;
     text-align: center;
     color: var(--text-muted);
+    display: none; /* Hidden by default, shown when no actions */
 }
 
 .empty-icon {

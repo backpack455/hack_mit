@@ -266,6 +266,41 @@ class OverlayService {
   }
 
   /**
+   * Handle shortcut toggle
+   */
+  async handleShortcutToggle() {
+    try {
+      console.log('🎯 Toggling overlay display...');
+      
+      if (this.isOverlayVisible) {
+        // Hide overlay
+        console.log('🔄 Toggling overlay off...');
+        this.hideOverlay();
+      } else {
+        // Show overlay immediately with loading state
+        await this.showOverlay([]); // Show empty overlay first
+        
+        // Generate actions in background and update overlay
+        this.generateAgenticRecommendations()
+          .then(actions => {
+            if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+              this.overlayWindow.webContents.send('show-actions', actions);
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error generating recommendations:', error);
+            // Show fallback actions on error
+            if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+              this.overlayWindow.webContents.send('show-actions', this.getFallbackActions());
+            }
+          });
+      }
+    } catch (error) {
+      console.error('❌ Error toggling overlay:', error);
+    }
+  }
+
+  /**
    * Handle circle gesture detection - toggle overlay visibility
    */
   async handleCircleGesture() {
@@ -339,28 +374,6 @@ class OverlayService {
       
     } catch (error) {
       console.error('❌ Error handling circle gesture:', error);
-      console.error('Stack:', error.stack);
-    }
-  }
-
-  async handleShortcutToggle() {
-    try {
-      // If overlay is visible, hide it (toggle off)
-      if (this.isOverlayVisible) {
-        console.log('🔄 Toggling overlay off...');
-        this.hideOverlay();
-        return;
-      }
-      
-      // For shortcuts, generate fresh agentic recommendations
-      const actions = await this.generateAgenticRecommendations();
-      console.log('🎯 Generated agentic recommendations for shortcut:', actions.length);
-      
-      console.log('🎨 Attempting to show overlay...');
-      await this.showOverlay(actions);
-      
-    } catch (error) {
-      console.error('❌ Error handling shortcut toggle:', error);
       console.error('Stack:', error.stack);
     }
   }
